@@ -27,7 +27,7 @@ echo.
 
 REM Build EXE
 echo Building agent.exe...
-pyinstaller --onefile --noconsole --name agent --clean agent.py
+pyinstaller --onefile --noconsole --name agent --clean --hidden-import pystray._win32 --hidden-import PIL agent.py
 
 if %errorlevel% neq 0 (
     echo.

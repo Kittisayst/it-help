@@ -9,6 +9,7 @@ import os
 import time
 import json
 import logging
+import threading
 import requests
 
 
@@ -76,6 +77,13 @@ from collectors import (
     collect_antivirus,
 )
 
+# System tray (optional - gracefully skip if not available)
+tray = None
+try:
+    from tray import AgentTray, TRAY_AVAILABLE
+except ImportError:
+    TRAY_AVAILABLE = False
+
 # Setup logging
 log_dir = os.path.join(BASE_DIR, "logs")
 os.makedirs(log_dir, exist_ok=True)
@@ -93,6 +101,7 @@ logger = logging.getLogger("ITMonitorAgent")
 
 def collect_all_data():
     """Collect all system data from all collectors."""
+    global tray
     data = {}
 
     collectors = [
@@ -118,16 +127,25 @@ def collect_all_data():
             logger.error(f"Error collecting {name}: {e}")
 
     data["department"] = CONFIG.get("department", "General")
+
+    # Update tray with latest data
+    if tray:
+        tray.update_status(tray.STATUS_RUNNING, data)
+
     return data
 
 
 def send_report(data):
     """Send collected data to the IT Monitor server."""
+    global tray
     url = f"{CONFIG['server_url']}/api/agent/report"
     headers = {
         "Content-Type": "application/json",
         "x-api-key": CONFIG["api_key"],
     }
+
+    if tray:
+        tray.update_status(tray.STATUS_SENDING)
 
     for attempt in range(CONFIG.get("max_retries", 3)):
         try:
@@ -138,6 +156,8 @@ def send_report(data):
                     f"Report sent successfully. Computer ID: {result.get('computerId', 'N/A')}, "
                     f"Alerts: {result.get('alerts', [])}"
                 )
+                if tray:
+                    tray.on_report_sent(True)
                 return True
             else:
                 logger.warning(
@@ -158,6 +178,8 @@ def send_report(data):
             time.sleep(CONFIG.get("retry_delay", 5))
 
     logger.error("Failed to send report after all retries")
+    if tray:
+        tray.on_report_sent(False)
     return False
 
 
@@ -199,17 +221,23 @@ def send_offline_reports():
             logger.error(f"Error processing offline report {filename}: {e}")
 
 
-def main():
-    """Main agent loop."""
-    logger.info("=" * 50)
-    logger.info("IT Monitor Agent Starting")
-    logger.info(f"Server URL: {CONFIG['server_url']}")
-    logger.info(f"Report Interval: {CONFIG['report_interval']}s")
-    logger.info(f"Department: {CONFIG.get('department', 'General')}")
-    logger.info(f"Running as: {'EXE' if getattr(sys, 'frozen', False) else 'Python script'}")
-    logger.info("=" * 50)
+# Flag to control the agent loop
+_running = True
 
-    while True:
+
+def stop_agent():
+    """Stop the agent gracefully."""
+    global _running
+    _running = False
+    logger.info("Agent stopping...")
+    os._exit(0)
+
+
+def agent_loop():
+    """Main agent loop (runs in background thread when tray is active)."""
+    global _running
+
+    while _running:
         try:
             # Send any offline reports first
             send_offline_reports()
@@ -226,10 +254,42 @@ def main():
 
         except Exception as e:
             logger.error(f"Unexpected error in main loop: {e}")
+            if tray:
+                tray.update_status(tray.STATUS_ERROR)
 
         # Wait for next interval
         logger.info(f"Next report in {CONFIG['report_interval']}s")
         time.sleep(CONFIG["report_interval"])
+
+
+def main():
+    """Main entry point."""
+    global tray
+
+    logger.info("=" * 50)
+    logger.info("IT Monitor Agent Starting")
+    logger.info(f"Server URL: {CONFIG['server_url']}")
+    logger.info(f"Report Interval: {CONFIG['report_interval']}s")
+    logger.info(f"Department: {CONFIG.get('department', 'General')}")
+    logger.info(f"Running as: {'EXE' if getattr(sys, 'frozen', False) else 'Python script'}")
+    logger.info(f"System Tray: {'Enabled' if TRAY_AVAILABLE else 'Disabled'}")
+    logger.info("=" * 50)
+
+    if TRAY_AVAILABLE:
+        # Create tray icon
+        tray = AgentTray(config=CONFIG, on_quit=stop_agent)
+
+        # Run agent loop in background thread
+        agent_thread = threading.Thread(target=agent_loop, daemon=True)
+        agent_thread.start()
+
+        # Run tray in main thread (required by Windows)
+        logger.info("System tray icon started")
+        tray.run()
+    else:
+        # No tray - run agent loop directly
+        logger.info("Running without system tray (pystray not installed)")
+        agent_loop()
 
 
 if __name__ == "__main__":
