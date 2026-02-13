@@ -47,10 +47,18 @@ set DIST_DIR=dist\it-monitor-agent
 echo Creating distribution package: %DIST_DIR%
 if not exist "%DIST_DIR%" mkdir "%DIST_DIR%"
 
+REM Generate icon files
+echo Generating icon files...
+python generate_icon.py
+
 copy dist\agent.exe "%DIST_DIR%\" >nul
 copy config.json "%DIST_DIR%\" >nul
 copy install_service.bat "%DIST_DIR%\" >nul
 copy uninstall_service.bat "%DIST_DIR%\" >nul
+copy icon_green.ico "%DIST_DIR%\" >nul
+copy icon_yellow.ico "%DIST_DIR%\" >nul
+copy icon_red.ico "%DIST_DIR%\" >nul
+copy icon_gray.ico "%DIST_DIR%\" >nul
 
 echo.
 echo Distribution package ready at: %DIST_DIR%\

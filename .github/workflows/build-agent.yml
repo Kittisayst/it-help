@@ -35,6 +35,12 @@ jobs:
           pyinstaller --onefile --noconsole --name agent --clean --hidden-import pystray._win32 --hidden-import PIL agent.py
         shell: cmd
 
+      - name: Generate icons
+        run: |
+          cd agent
+          python generate_icon.py
+        shell: cmd
+
       - name: Prepare distribution
         run: |
           mkdir dist\it-monitor-agent
@@ -42,6 +48,10 @@ jobs:
           copy agent\config.json dist\it-monitor-agent\
           copy agent\install_service.bat dist\it-monitor-agent\
           copy agent\uninstall_service.bat dist\it-monitor-agent\
+          copy agent\icon_green.ico dist\it-monitor-agent\
+          copy agent\icon_yellow.ico dist\it-monitor-agent\
+          copy agent\icon_red.ico dist\it-monitor-agent\
+          copy agent\icon_gray.ico dist\it-monitor-agent\
         shell: cmd
 
       - name: Upload artifact

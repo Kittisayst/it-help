@@ -7,8 +7,12 @@ import sys
 import os
 import threading
 import socket
-import psutil
-from PIL import Image, ImageDraw, ImageFont
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 try:
     import pystray
@@ -35,9 +39,30 @@ class AgentTray:
         self.report_count = 0
         self.icon = None
         self._last_data = {}
+        self._base_dir = self._get_base_dir()
+        self._icon_cache = {}
 
-    def create_icon_image(self, color="green"):
-        """Create a simple colored icon with 'IT' text."""
+    def _get_base_dir(self):
+        """Get base directory - works for both .py and .exe."""
+        if getattr(sys, 'frozen', False):
+            return os.path.dirname(sys.executable)
+        return os.path.dirname(os.path.abspath(__file__))
+
+    def _load_ico_file(self, color):
+        """Try to load .ico file from disk."""
+        ico_path = os.path.join(self._base_dir, f"icon_{color}.ico")
+        if os.path.exists(ico_path):
+            try:
+                return Image.open(ico_path)
+            except Exception:
+                pass
+        return None
+
+    def _create_icon_pillow(self, color="green"):
+        """Create icon using Pillow (fallback if .ico files not found)."""
+        if not PIL_AVAILABLE:
+            return None
+
         colors = {
             "green": "#22c55e",
             "yellow": "#eab308",
@@ -67,6 +92,23 @@ class AgentTray:
 
         return img
 
+    def get_icon_image(self, color="green"):
+        """Get icon image - tries .ico file first, then Pillow fallback."""
+        if color in self._icon_cache:
+            return self._icon_cache[color]
+
+        # Try .ico file first
+        img = self._load_ico_file(color)
+
+        # Fallback to Pillow-generated icon
+        if img is None:
+            img = self._create_icon_pillow(color)
+
+        if img is not None:
+            self._icon_cache[color] = img
+
+        return img
+
     def get_status_color(self):
         """Get icon color based on current status."""
         if self.status == self.STATUS_ERROR:
@@ -93,7 +135,9 @@ class AgentTray:
         if data:
             self._last_data = data
         if self.icon:
-            self.icon.icon = self.create_icon_image(self.get_status_color())
+            new_img = self.get_icon_image(self.get_status_color())
+            if new_img:
+                self.icon.icon = new_img
             self.icon.title = self.get_tooltip()
 
     def on_report_sent(self, success):
@@ -155,16 +199,10 @@ class AgentTray:
         except Exception:
             pass
 
-    def _get_base_dir(self):
-        """Get base directory - works for both .py and .exe."""
-        if getattr(sys, 'frozen', False):
-            return os.path.dirname(sys.executable)
-        return os.path.dirname(os.path.abspath(__file__))
-
     def _open_logs(self, icon, item):
         """Open logs folder."""
         try:
-            log_dir = os.path.join(self._get_base_dir(), "logs")
+            log_dir = os.path.join(self._base_dir, "logs")
             os.makedirs(log_dir, exist_ok=True)
             os.startfile(log_dir)
         except Exception:
@@ -173,7 +211,7 @@ class AgentTray:
     def _open_config(self, icon, item):
         """Open config.json in default editor."""
         try:
-            config_path = os.path.join(self._get_base_dir(), "config.json")
+            config_path = os.path.join(self._base_dir, "config.json")
             if os.path.exists(config_path):
                 os.startfile(config_path)
         except Exception:
@@ -202,9 +240,17 @@ class AgentTray:
         if not TRAY_AVAILABLE:
             return
 
+        icon_img = self.get_icon_image("green")
+        if icon_img is None:
+            # Last resort: create a minimal 16x16 green image
+            if PIL_AVAILABLE:
+                icon_img = Image.new("RGBA", (16, 16), "#22c55e")
+            else:
+                return
+
         self.icon = pystray.Icon(
             name="ITMonitorAgent",
-            icon=self.create_icon_image("green"),
+            icon=icon_img,
             title=self.get_tooltip(),
             menu=self.build_menu(),
         )
