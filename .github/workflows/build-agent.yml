@@ -64,7 +64,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
+    # Release on every push and manual trigger
 
     steps:
       - name: Download artifact
