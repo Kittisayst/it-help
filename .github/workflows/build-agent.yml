@@ -2,10 +2,13 @@ name: Build Agent EXE
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     paths:
       - 'agent/**'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
