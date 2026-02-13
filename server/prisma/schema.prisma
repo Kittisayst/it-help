@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Computer {
+  id          String   @id @default(cuid())
+  hostname    String   @unique
+  ipAddress   String
+  macAddress  String?
+  osVersion   String?
+  department  String?
+  label       String?
+  apiKey      String
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reports     Report[]
+  alerts      Alert[]
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  computerId  String
+  computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+
+  cpuUsage    Float
+  cpuCores    Int?
+  cpuSpeed    String?
+  cpuTemp     Float?
+
+  ramTotal    Float
+  ramUsed     Float
+  ramUsage    Float
+
+  diskTotal   Float
+  diskUsed    Float
+  diskUsage   Float
+  diskDetails String?
+
+  networkUp   Boolean  @default(true)
+  networkInfo String?
+
+  osInfo      String?
+  uptime      Float?
+
+  topProcesses String?
+  eventLogs    String?
+  software     String?
+  antivirusStatus String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([computerId, createdAt])
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  computerId  String
+  computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+
+  type        String
+  severity    String   @default("warning")
+  message     String
+  resolved    Boolean  @default(false)
+  resolvedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([computerId, createdAt])
+  @@index([resolved])
+}

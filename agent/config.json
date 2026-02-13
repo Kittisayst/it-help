@@ -1,0 +1,11 @@
+{
+  "server_url": "http://localhost:3000",
+  "api_key": "it-monitor-secret-key-2024",
+  "report_interval": 30,
+  "department": "General",
+  "top_processes_count": 15,
+  "event_log_count": 20,
+  "collect_software": true,
+  "max_retries": 3,
+  "retry_delay": 5
+}

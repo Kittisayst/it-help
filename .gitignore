@@ -1,0 +1,22 @@
+# === Agent ===
+agent/logs/
+agent/offline_reports/
+agent/dist/
+agent/build/
+agent/*.spec
+agent/__pycache__/
+agent/collectors/__pycache__/
+
+# === Server (handled by server/.gitignore too) ===
+server/node_modules/
+server/.next/
+server/.env*
+server/prisma/dev.db
+server/prisma/dev.db-journal
+server/src/generated/
+
+# === General ===
+.DS_Store
+Thumbs.db
+*.pyc
+__pycache__/

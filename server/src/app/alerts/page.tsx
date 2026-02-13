@@ -1,0 +1,151 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+
+interface AlertItem {
+  id: string;
+  type: string;
+  severity: string;
+  message: string;
+  resolved: boolean;
+  resolvedAt: string | null;
+  createdAt: string;
+  computer: {
+    hostname: string;
+    ipAddress: string;
+    department: string | null;
+  };
+}
+
+export default function AlertsPage() {
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "active" | "resolved">("active");
+
+  const fetchAlerts = async () => {
+    try {
+      const param = filter === "all" ? "" : filter === "active" ? "?resolved=false" : "?resolved=true";
+      const res = await fetch(`/api/alerts${param}`);
+      const json = await res.json();
+      setAlerts(json);
+    } catch (err) {
+      console.error("Failed to fetch alerts:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 10000);
+    return () => clearInterval(interval);
+  }, [filter]);
+
+  const resolveAlert = async (id: string) => {
+    try {
+      await fetch(`/api/alerts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resolved: true }),
+      });
+      fetchAlerts();
+    } catch (err) {
+      console.error("Failed to resolve alert:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Alerts</h1>
+          <p className="text-muted text-sm mt-1">Monitor system alerts and warnings</p>
+        </div>
+        <button
+          onClick={fetchAlerts}
+          className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      <div className="flex gap-2">
+        {(["active", "resolved", "all"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+              filter === f
+                ? "bg-accent text-white"
+                : "bg-card border border-border text-muted hover:text-foreground"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {alerts.length === 0 ? (
+        <div className="text-center py-20">
+          <CheckCircle className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold">No alerts</h2>
+          <p className="text-muted mt-2">All systems are running normally</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {alerts.map((alert) => (
+            <div
+              key={alert.id}
+              className={`flex items-center justify-between p-4 rounded-xl border ${
+                alert.resolved
+                  ? "border-border bg-card opacity-60"
+                  : alert.severity === "critical"
+                  ? "border-red-500/30 bg-red-500/5"
+                  : "border-amber-500/30 bg-amber-500/5"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <AlertTriangle
+                  className={`w-5 h-5 shrink-0 ${
+                    alert.resolved
+                      ? "text-muted"
+                      : alert.severity === "critical"
+                      ? "text-red-400"
+                      : "text-amber-400"
+                  }`}
+                />
+                <div>
+                  <p className="font-medium text-sm">{alert.message}</p>
+                  <p className="text-xs text-muted mt-1">
+                    {alert.computer.hostname} ({alert.computer.ipAddress}) |{" "}
+                    {alert.computer.department || "General"} |{" "}
+                    {new Date(alert.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+              {!alert.resolved && (
+                <button
+                  onClick={() => resolveAlert(alert.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-medium hover:bg-emerald-500/20 transition-colors shrink-0 ml-4"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Resolve
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
