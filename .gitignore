@@ -4,7 +4,7 @@ agent/offline_reports/
 agent/dist/
 agent/build/
 agent/*.spec
-agent/*.ico
+agent/icon_*.ico
 agent/__pycache__/
 agent/collectors/__pycache__/
 
