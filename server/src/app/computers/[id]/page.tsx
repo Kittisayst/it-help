@@ -263,14 +263,21 @@ export default function ComputerDetailPage() {
             if (cmd.result) {
               try {
                 const result = JSON.parse(cmd.result);
+                console.log("Screenshot result:", result);
                 if (result.screenshot) {
                   setScreenshot(result.screenshot);
+                  console.log("Screenshot set successfully, length:", result.screenshot.length);
                 } else {
+                  console.error("No screenshot in result:", result);
                   alert("Screenshot failed: " + (result.output || "Unknown error"));
                 }
               } catch (e) {
-                alert("Failed to parse screenshot result");
+                console.error("Parse error:", e);
+                alert("Failed to parse screenshot result: " + cmd.result);
               }
+            } else {
+              console.error("No result in command:", cmd);
+              alert("Command completed but no result returned");
             }
           }
         }, 2000);
