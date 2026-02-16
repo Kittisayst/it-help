@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle, CheckCircle, RefreshCw, Download } from "lucide-react";
 
 interface AlertItem {
   id: string;
@@ -70,13 +70,25 @@ export default function AlertsPage() {
           <h1 className="text-2xl font-bold">Alerts</h1>
           <p className="text-muted text-sm mt-1">Monitor system alerts and warnings</p>
         </div>
-        <button
-          onClick={fetchAlerts}
-          className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              const param = filter === "all" ? "" : filter === "active" ? "?resolved=false" : "?resolved=true";
+              window.open(`/api/alerts/export${param}`, "_blank");
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={fetchAlerts}
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2">

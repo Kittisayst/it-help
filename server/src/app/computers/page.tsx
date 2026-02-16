@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Monitor, Search, RefreshCw } from "lucide-react";
+import { Monitor, Search, RefreshCw, Download } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { UsageBar } from "@/components/usage-bar";
 
@@ -71,13 +71,22 @@ export default function ComputersPage() {
           <h1 className="text-2xl font-bold">Computers</h1>
           <p className="text-muted text-sm mt-1">{computers.length} computers registered</p>
         </div>
-        <button
-          onClick={fetchComputers}
-          className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => window.open(`/api/computers/export?status=${filterStatus}`, "_blank")}
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
+          <button
+            onClick={fetchComputers}
+            className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
