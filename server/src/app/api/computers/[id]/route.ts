@@ -110,6 +110,7 @@ export async function PATCH(
       data: {
         label: data.label,
         department: data.department,
+        tags: data.tags,
       },
     });
 

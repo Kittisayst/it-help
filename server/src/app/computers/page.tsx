@@ -28,6 +28,7 @@ export default function ComputersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterDepartment, setFilterDepartment] = useState<string>("all");
 
   const fetchComputers = async () => {
     try {
@@ -53,8 +54,11 @@ export default function ComputersPage() {
       c.ipAddress.includes(search) ||
       (c.department || "").toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === "all" || c.status === filterStatus;
-    return matchSearch && matchStatus;
+    const matchDepartment = filterDepartment === "all" || c.department === filterDepartment;
+    return matchSearch && matchStatus && matchDepartment;
   });
+
+  const departments = Array.from(new Set(computers.map(c => c.department || "General")));
 
   if (loading) {
     return (
@@ -100,6 +104,16 @@ export default function ComputersPage() {
             className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-foreground placeholder:text-muted"
           />
         </div>
+        <select
+          value={filterDepartment}
+          onChange={(e) => setFilterDepartment(e.target.value)}
+          className="px-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-foreground"
+        >
+          <option value="all">All Departments</option>
+          {departments.map((dept) => (
+            <option key={dept} value={dept}>{dept}</option>
+          ))}
+        </select>
         <div className="flex gap-2">
           {["all", "online", "warning", "offline"].map((status) => (
             <button

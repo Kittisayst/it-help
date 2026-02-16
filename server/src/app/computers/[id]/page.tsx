@@ -119,6 +119,10 @@ export default function ComputerDetailPage() {
   const [customScript, setCustomScript] = useState("");
   const [pingHost, setPingHost] = useState("8.8.8.8");
   const [killTarget, setKillTarget] = useState("");
+  const [editingLabel, setEditingLabel] = useState(false);
+  const [editingTags, setEditingTags] = useState(false);
+  const [labelValue, setLabelValue] = useState("");
+  const [tagsValue, setTagsValue] = useState("");
 
   const fetchComputer = async () => {
     try {
@@ -166,6 +170,40 @@ export default function ComputerDetailPage() {
       console.error("Failed to send command:", err);
     } finally {
       setTimeout(() => setActionLoading(null), 1000);
+    }
+  };
+
+  const saveLabel = async () => {
+    if (!computer) return;
+    try {
+      const res = await fetch(`/api/computers/${computer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: labelValue }),
+      });
+      if (res.ok) {
+        setEditingLabel(false);
+        fetchComputer();
+      }
+    } catch (err) {
+      console.error("Failed to save label:", err);
+    }
+  };
+
+  const saveTags = async () => {
+    if (!computer) return;
+    try {
+      const res = await fetch(`/api/computers/${computer.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: tagsValue }),
+      });
+      if (res.ok) {
+        setEditingTags(false);
+        fetchComputer();
+      }
+    } catch (err) {
+      console.error("Failed to save tags:", err);
     }
   };
 
@@ -229,6 +267,56 @@ export default function ComputerDetailPage() {
           <p className="text-muted text-sm mt-1">
             {computer.ipAddress} | {computer.department || "General"} | Last seen: {new Date(computer.lastSeenAt).toLocaleString()}
           </p>
+          <div className="flex items-center gap-3 mt-2">
+            {editingLabel ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={labelValue}
+                  onChange={(e) => setLabelValue(e.target.value)}
+                  placeholder="Add label/note..."
+                  className="px-3 py-1 text-sm bg-background border border-border rounded"
+                  autoFocus
+                />
+                <button onClick={saveLabel} className="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-accent/90">Save</button>
+                <button onClick={() => setEditingLabel(false)} className="px-3 py-1 text-xs bg-card border border-border rounded hover:bg-border/50">Cancel</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setLabelValue(computer.label || "");
+                  setEditingLabel(true);
+                }}
+                className="text-sm text-muted hover:text-foreground"
+              >
+                {computer.label ? `📝 ${computer.label}` : "+ Add label"}
+              </button>
+            )}
+            {editingTags ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={tagsValue}
+                  onChange={(e) => setTagsValue(e.target.value)}
+                  placeholder="Tags (comma separated)..."
+                  className="px-3 py-1 text-sm bg-background border border-border rounded"
+                  autoFocus
+                />
+                <button onClick={saveTags} className="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-accent/90">Save</button>
+                <button onClick={() => setEditingTags(false)} className="px-3 py-1 text-xs bg-card border border-border rounded hover:bg-border/50">Cancel</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setTagsValue(computer.tags || "");
+                  setEditingTags(true);
+                }}
+                className="text-sm text-muted hover:text-foreground"
+              >
+                {computer.tags ? `🏷️ ${computer.tags}` : "+ Add tags"}
+              </button>
+            )}
+          </div>
         </div>
         <button
           onClick={() => window.open(`rdp://${computer.ipAddress}`, "_blank")}
