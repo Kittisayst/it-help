@@ -189,15 +189,18 @@ class AgentTray:
         return "\n".join(lines)
 
     def _show_info(self, icon, item):
-        """Show system info in a message box."""
-        try:
-            import ctypes
-            info = self._get_system_info_text()
-            ctypes.windll.user32.MessageBoxW(
-                0, info, "IT Monitor Agent - System Info", 0x40
-            )
-        except Exception:
-            pass
+        """Show system info in a message box (runs in separate thread to avoid blocking)."""
+        def _show():
+            try:
+                import ctypes
+                info = self._get_system_info_text()
+                ctypes.windll.user32.MessageBoxW(
+                    0, info, "IT Monitor Agent - System Info",
+                    0x40 | 0x00010000  # MB_ICONINFORMATION | MB_SETFOREGROUND
+                )
+            except Exception:
+                pass
+        threading.Thread(target=_show, daemon=True).start()
 
     def _open_logs(self, icon, item):
         """Open logs folder."""
