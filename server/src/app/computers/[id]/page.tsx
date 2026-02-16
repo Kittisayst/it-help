@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Loader2,
   Cog,
+  Camera,
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { UsageBar } from "@/components/usage-bar";
@@ -124,6 +125,8 @@ export default function ComputerDetailPage() {
   const [labelValue, setLabelValue] = useState("");
   const [tagsValue, setTagsValue] = useState("");
   const [serverMessage, setServerMessage] = useState("");
+  const [screenshot, setScreenshot] = useState<string | null>(null);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
 
   const fetchComputer = async () => {
     try {
@@ -226,6 +229,62 @@ export default function ComputerDetailPage() {
     } catch (err) {
       console.error("Failed to send server message:", err);
       alert("ສົ່ງຂໍ້ຄວາມບໍ່ສຳເລັດ");
+    }
+  };
+
+  const captureScreenshot = async () => {
+    if (!computer) return;
+    setScreenshotLoading(true);
+    try {
+      const res = await fetch("/api/commands", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          computerId: computer.id,
+          action: "screenshot",
+          params: null,
+        }),
+      });
+      
+      if (res.ok) {
+        const command = await res.json();
+        const commandId = command.id;
+        
+        // Poll for result
+        const pollInterval = setInterval(async () => {
+          const cmdRes = await fetch(`/api/commands?computerId=${computer.id}`);
+          const commands = await cmdRes.json();
+          const cmd = commands.find((c: any) => c.id === commandId);
+          
+          if (cmd && cmd.status === "completed") {
+            clearInterval(pollInterval);
+            setScreenshotLoading(false);
+            
+            if (cmd.result) {
+              try {
+                const result = JSON.parse(cmd.result);
+                if (result.screenshot) {
+                  setScreenshot(result.screenshot);
+                } else {
+                  alert("Screenshot failed: " + (result.output || "Unknown error"));
+                }
+              } catch (e) {
+                alert("Failed to parse screenshot result");
+              }
+            }
+          }
+        }, 2000);
+        
+        // Timeout after 30 seconds
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          setScreenshotLoading(false);
+        }, 30000);
+      }
+    } catch (err) {
+      console.error("Failed to capture screenshot:", err);
+      setScreenshotLoading(false);
+      alert("ບໍ່ສາມາດຖ່າຍຮູບໜ້າຈໍໄດ້");
     }
   };
 
@@ -340,26 +399,63 @@ export default function ComputerDetailPage() {
             )}
           </div>
         </div>
-        <button
-          onClick={() => {
-            const rdpContent = `full address:s:${computer.ipAddress}\nprompt for credentials:i:1\nadministrative session:i:1`;
-            const blob = new Blob([rdpContent], { type: 'application/x-rdp' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${computer.hostname}.rdp`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
-          title="Download RDP file to connect"
-        >
-          <Monitor className="w-4 h-4" />
-          Connect RDP
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={captureScreenshot}
+            disabled={screenshotLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-sm font-medium hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+            title="ຖ່າຍຮູບໜ້າຈໍ"
+          >
+            {screenshotLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4" />
+            )}
+            ຖ່າຍຮູບໜ້າຈໍ
+          </button>
+          <button
+            onClick={() => {
+              const rdpContent = `full address:s:${computer.ipAddress}\nprompt for credentials:i:1\nadministrative session:i:1`;
+              const blob = new Blob([rdpContent], { type: 'application/x-rdp' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${computer.hostname}.rdp`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
+            title="Download RDP file to connect"
+          >
+            <Monitor className="w-4 h-4" />
+            Connect RDP
+          </button>
+        </div>
       </div>
+
+      {/* Screenshot Display */}
+      {screenshot && (
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold">ຮູບໜ້າຈໍ (Screenshot)</h3>
+            <button
+              onClick={() => setScreenshot(null)}
+              className="text-xs text-muted hover:text-foreground"
+            >
+              ປິດ
+            </button>
+          </div>
+          <div className="bg-background rounded-lg overflow-hidden">
+            <img
+              src={`data:image/png;base64,${screenshot}`}
+              alt="Screenshot"
+              className="w-full h-auto"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-border pb-0">

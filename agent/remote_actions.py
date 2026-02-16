@@ -31,6 +31,7 @@ ALLOWED_ACTIONS = [
     "service_start",
     "service_stop",
     "service_restart",
+    "screenshot",
 ]
 
 
@@ -364,6 +365,42 @@ def action_service_restart(params):
     return {"success": True, "output": f"STOP:\n{output_stop}\n\nSTART:\n{output_start}"}
 
 
+def action_screenshot(params):
+    """Capture screenshot and return as base64."""
+    try:
+        import io
+        import base64
+        from PIL import ImageGrab
+        
+        # Capture all screens
+        screenshot = ImageGrab.grab(all_screens=True)
+        
+        # Convert to bytes
+        buffer = io.BytesIO()
+        screenshot.save(buffer, format='PNG')
+        img_bytes = buffer.getvalue()
+        
+        # Encode to base64
+        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+        
+        return {
+            "success": True,
+            "output": "Screenshot captured successfully",
+            "screenshot": img_base64
+        }
+        
+    except ImportError:
+        return {
+            "success": False,
+            "output": "PIL/Pillow library not installed. Install with: pip install pillow"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "output": f"Screenshot failed: {str(e)}"
+        }
+
+
 # Handler map
 HANDLERS = {
     "restart": action_restart,
@@ -383,4 +420,5 @@ HANDLERS = {
     "service_start": action_service_start,
     "service_stop": action_service_stop,
     "service_restart": action_service_restart,
+    "screenshot": action_screenshot,
 }
