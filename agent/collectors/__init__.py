@@ -7,6 +7,13 @@ from .processes import collect_processes
 from .event_log import collect_event_logs
 from .software import collect_software
 from .antivirus import collect_antivirus
+from .printers import collect_printers
+from .windows_license import collect_windows_license
+from .office_license import collect_office_license
+from .startup import collect_startup
+from .shared_folders import collect_shared_folders
+from .usb_devices import collect_usb_devices
+from .windows_update import collect_windows_update
 
 __all__ = [
     "collect_cpu",
@@ -18,4 +25,11 @@ __all__ = [
     "collect_event_logs",
     "collect_software",
     "collect_antivirus",
+    "collect_printers",
+    "collect_windows_license",
+    "collect_office_license",
+    "collect_startup",
+    "collect_shared_folders",
+    "collect_usb_devices",
+    "collect_windows_update",
 ]

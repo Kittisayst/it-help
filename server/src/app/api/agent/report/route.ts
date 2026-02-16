@@ -65,6 +65,13 @@ export async function POST(request: NextRequest) {
         eventLogs: metrics.event_logs ? JSON.stringify(metrics.event_logs) : null,
         software: metrics.software ? JSON.stringify(metrics.software) : null,
         antivirusStatus: metrics.antivirus_status,
+        printers: metrics.printers ? JSON.stringify(metrics.printers) : null,
+        windowsLicense: metrics.windows_license ? JSON.stringify(metrics.windows_license) : null,
+        officeLicense: metrics.office_license ? JSON.stringify(metrics.office_license) : null,
+        startupPrograms: metrics.startup_programs ? JSON.stringify(metrics.startup_programs) : null,
+        sharedFolders: metrics.shared_folders ? JSON.stringify(metrics.shared_folders) : null,
+        usbDevices: metrics.usb_devices ? JSON.stringify(metrics.usb_devices) : null,
+        windowsUpdate: metrics.windows_update ? JSON.stringify(metrics.windows_update) : null,
       },
     });
 

@@ -14,6 +14,12 @@ import {
   AlertTriangle,
   Settings,
   List,
+  Printer,
+  KeyRound,
+  Play,
+  FolderOpen,
+  Usb,
+  Download,
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { UsageBar } from "@/components/usage-bar";
@@ -59,6 +65,13 @@ interface ComputerDetail {
     eventLogs: Array<{ level: string; source: string; message: string; time: string }> | null;
     software: Array<{ name: string; version: string }> | null;
     antivirusStatus: string | null;
+    printers: Array<{ name: string; is_default: boolean; is_network: boolean; status: string; port: string; driver: string }> | null;
+    windowsLicense: { edition: string; status: string; partial_key: string; is_activated: boolean; license_type: string } | null;
+    officeLicense: { installed: boolean; version: string; products: Array<{ name: string; status: string; is_activated: boolean; partial_key: string }> } | null;
+    startupPrograms: Array<{ name: string; command: string; location: string }> | null;
+    sharedFolders: Array<{ name: string; path: string; remark: string; is_hidden: boolean }> | null;
+    usbDevices: Array<{ name: string; status: string; manufacturer: string }> | null;
+    windowsUpdate: { recent_updates: Array<{ id: string; description: string; installed_on: string }>; pending_count: number } | null;
   } | null;
   history: Array<{
     cpuUsage: number;
@@ -93,7 +106,7 @@ export default function ComputerDetailPage() {
   const params = useParams();
   const [computer, setComputer] = useState<ComputerDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"overview" | "processes" | "events" | "software">("overview");
+  const [tab, setTab] = useState<"overview" | "processes" | "events" | "software" | "printers" | "licenses" | "startup" | "system">("overview");
 
   const fetchComputer = async () => {
     try {
@@ -170,6 +183,10 @@ export default function ComputerDetailPage() {
           { key: "processes", label: "Processes", icon: Cpu },
           { key: "events", label: "Event Logs", icon: AlertTriangle },
           { key: "software", label: "Software", icon: List },
+          { key: "printers", label: "Printers", icon: Printer },
+          { key: "licenses", label: "Licenses", icon: KeyRound },
+          { key: "startup", label: "Startup", icon: Play },
+          { key: "system", label: "System", icon: Settings },
         ].map((t) => (
           <button
             key={t.key}
@@ -407,6 +424,254 @@ export default function ComputerDetailPage() {
           ) : (
             <p className="text-muted text-center py-8">No software data available</p>
           )}
+        </div>
+      )}
+
+      {tab === "printers" && (
+        <div className="bg-card border border-border rounded-xl p-6">
+          <h3 className="font-semibold mb-4">Installed Printers</h3>
+          {report?.printers && report.printers.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-muted">
+                    <th className="text-left py-3 px-4">Name</th>
+                    <th className="text-left py-3 px-4">Status</th>
+                    <th className="text-left py-3 px-4">Port</th>
+                    <th className="text-left py-3 px-4">Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.printers.map((p, i) => (
+                    <tr key={i} className="border-b border-border/50 hover:bg-border/20">
+                      <td className="py-3 px-4">
+                        <span className="font-medium">{p.name}</span>
+                        {p.is_default && (
+                          <span className="ml-2 text-xs bg-accent/10 text-accent px-1.5 py-0.5 rounded">Default</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`text-xs px-2 py-0.5 rounded ${p.status === "Ready" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-muted text-xs">{p.port}</td>
+                      <td className="py-3 px-4 text-xs text-muted">{p.is_network ? "Network" : "Local"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-muted text-center py-8">No printer data available</p>
+          )}
+        </div>
+      )}
+
+      {tab === "licenses" && (
+        <div className="space-y-6">
+          {/* Windows License */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <KeyRound className="w-4 h-4" />
+              Windows License
+            </h3>
+            {report?.windowsLicense ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted mb-1">Edition</p>
+                  <p className="text-sm font-medium">{report.windowsLicense.edition || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted mb-1">Status</p>
+                  <span className={`text-sm font-medium px-2 py-0.5 rounded ${report.windowsLicense.is_activated ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                    {report.windowsLicense.is_activated ? "Activated" : report.windowsLicense.status}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xs text-muted mb-1">Partial Key</p>
+                  <p className="text-sm font-mono">{report.windowsLicense.partial_key || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted mb-1">License Type</p>
+                  <p className="text-sm">{report.windowsLicense.license_type || "N/A"}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted text-center py-4">No Windows license data</p>
+            )}
+          </div>
+
+          {/* Office License */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <KeyRound className="w-4 h-4" />
+              Microsoft Office
+            </h3>
+            {report?.officeLicense?.installed ? (
+              <div>
+                <p className="text-sm mb-3">Version: <span className="font-medium">{report.officeLicense.version}</span></p>
+                {report.officeLicense.products.length > 0 ? (
+                  <div className="space-y-2">
+                    {report.officeLicense.products.map((p, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-border">
+                        <div>
+                          <p className="text-sm font-medium">{p.name}</p>
+                          {p.partial_key && <p className="text-xs text-muted font-mono mt-0.5">Key: {p.partial_key}</p>}
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded ${p.is_activated ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                          {p.is_activated ? "Activated" : p.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted text-sm">No product details available</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted text-center py-4">Microsoft Office not installed</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "startup" && (
+        <div className="bg-card border border-border rounded-xl p-6">
+          <h3 className="font-semibold mb-4">Startup Programs</h3>
+          {report?.startupPrograms && report.startupPrograms.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-muted">
+                    <th className="text-left py-3 px-4">Name</th>
+                    <th className="text-left py-3 px-4">Command</th>
+                    <th className="text-left py-3 px-4">Location</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.startupPrograms.map((p, i) => (
+                    <tr key={i} className="border-b border-border/50 hover:bg-border/20">
+                      <td className="py-3 px-4 font-medium">{p.name}</td>
+                      <td className="py-3 px-4 font-mono text-xs text-muted max-w-xs truncate">{p.command}</td>
+                      <td className="py-3 px-4 text-xs text-muted">{p.location}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-muted text-center py-8">No startup program data available</p>
+          )}
+        </div>
+      )}
+
+      {tab === "system" && (
+        <div className="space-y-6">
+          {/* Shared Folders */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <FolderOpen className="w-4 h-4" />
+              Shared Folders
+            </h3>
+            {report?.sharedFolders && report.sharedFolders.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted">
+                      <th className="text-left py-3 px-4">Name</th>
+                      <th className="text-left py-3 px-4">Path</th>
+                      <th className="text-left py-3 px-4">Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.sharedFolders.map((f, i) => (
+                      <tr key={i} className="border-b border-border/50 hover:bg-border/20">
+                        <td className="py-3 px-4 font-medium">{f.name}</td>
+                        <td className="py-3 px-4 font-mono text-xs text-muted">{f.path}</td>
+                        <td className="py-3 px-4 text-xs">{f.is_hidden ? "Hidden" : "Visible"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-muted text-center py-4">No shared folders</p>
+            )}
+          </div>
+
+          {/* USB Devices */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Usb className="w-4 h-4" />
+              USB Devices
+            </h3>
+            {report?.usbDevices && report.usbDevices.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted">
+                      <th className="text-left py-3 px-4">Device</th>
+                      <th className="text-left py-3 px-4">Manufacturer</th>
+                      <th className="text-left py-3 px-4">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.usbDevices.map((d, i) => (
+                      <tr key={i} className="border-b border-border/50 hover:bg-border/20">
+                        <td className="py-3 px-4">{d.name}</td>
+                        <td className="py-3 px-4 text-muted">{d.manufacturer || "N/A"}</td>
+                        <td className="py-3 px-4">
+                          <span className={`text-xs px-2 py-0.5 rounded ${d.status === "OK" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                            {d.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-muted text-center py-4">No USB devices detected</p>
+            )}
+          </div>
+
+          {/* Windows Update */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Download className="w-4 h-4" />
+              Windows Update
+              {report?.windowsUpdate?.pending_count ? (
+                <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded">
+                  {report.windowsUpdate.pending_count} pending
+                </span>
+              ) : null}
+            </h3>
+            {report?.windowsUpdate?.recent_updates && report.windowsUpdate.recent_updates.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-muted">
+                      <th className="text-left py-3 px-4">Update ID</th>
+                      <th className="text-left py-3 px-4">Description</th>
+                      <th className="text-left py-3 px-4">Installed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.windowsUpdate.recent_updates.map((u, i) => (
+                      <tr key={i} className="border-b border-border/50 hover:bg-border/20">
+                        <td className="py-3 px-4 font-mono text-xs">{u.id}</td>
+                        <td className="py-3 px-4">{u.description}</td>
+                        <td className="py-3 px-4 text-xs text-muted">{u.installed_on}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-muted text-center py-4">No update data available</p>
+            )}
+          </div>
         </div>
       )}
     </div>

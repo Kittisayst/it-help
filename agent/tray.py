@@ -202,6 +202,102 @@ class AgentTray:
                 pass
         threading.Thread(target=_show, daemon=True).start()
 
+    def _send_message_to_it(self, icon, item):
+        """Open a dialog to send a message to IT support."""
+        def _send():
+            try:
+                import ctypes
+                import ctypes.wintypes
+
+                # Use a simple InputBox via VBScript (no extra dependencies)
+                import subprocess
+                import tempfile
+                import socket
+
+                vbs_content = '''
+Dim msg
+msg = InputBox("ພິມຂໍ້ຄວາມຫາ IT Support:", "IT Monitor - Send Message", "")
+If msg <> "" Then
+    Dim fso, f
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    Set f = fso.CreateTextFile("{tmpfile}", True)
+    f.Write msg
+    f.Close
+End If
+'''
+                # Create temp file for the message
+                tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, prefix='itmsg_')
+                tmp_path = tmp.name
+                tmp.close()
+
+                # Create VBS script
+                vbs_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.vbs', delete=False, prefix='itmsg_')
+                vbs_tmp.write(vbs_content.replace("{tmpfile}", tmp_path.replace("\\", "\\\\")))
+                vbs_path = vbs_tmp.name
+                vbs_tmp.close()
+
+                # Run VBScript
+                subprocess.run(
+                    ["cscript", "//nologo", vbs_path],
+                    timeout=120,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                )
+
+                # Read message
+                message = ""
+                try:
+                    with open(tmp_path, "r", encoding="utf-8") as f:
+                        message = f.read().strip()
+                except Exception:
+                    pass
+
+                # Cleanup temp files
+                try:
+                    os.remove(vbs_path)
+                    os.remove(tmp_path)
+                except Exception:
+                    pass
+
+                if not message:
+                    return
+
+                # Send message to server
+                import requests
+                url = f"{self.config.get('server_url', 'http://localhost:3000')}/api/agent/message"
+                payload = {
+                    "hostname": socket.gethostname(),
+                    "department": self.config.get("department", "General"),
+                    "message": message,
+                    "ip_address": self._last_data.get("ip_address", ""),
+                }
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-api-key": self.config.get("api_key", ""),
+                }
+
+                try:
+                    resp = requests.post(url, json=payload, headers=headers, timeout=10)
+                    if resp.status_code == 200:
+                        ctypes.windll.user32.MessageBoxW(
+                            0, "ສົ່ງຂໍ້ຄວາມຫາ IT ສຳເລັດແລ້ວ!",
+                            "IT Monitor", 0x40 | 0x00010000
+                        )
+                    else:
+                        ctypes.windll.user32.MessageBoxW(
+                            0, f"ສົ່ງບໍ່ສຳເລັດ: Server ຕອບ {resp.status_code}",
+                            "IT Monitor", 0x10 | 0x00010000
+                        )
+                except Exception as e:
+                    ctypes.windll.user32.MessageBoxW(
+                        0, f"ສົ່ງບໍ່ສຳເລັດ: {str(e)[:200]}",
+                        "IT Monitor", 0x10 | 0x00010000
+                    )
+
+            except Exception:
+                pass
+
+        threading.Thread(target=_send, daemon=True).start()
+
     def _open_logs(self, icon, item):
         """Open logs folder."""
         try:
@@ -232,6 +328,8 @@ class AgentTray:
             MenuItem("IT Monitor Agent", None, enabled=False),
             Menu.SEPARATOR,
             MenuItem("System Info", self._show_info),
+            MenuItem("Send Message to IT", self._send_message_to_it),
+            Menu.SEPARATOR,
             MenuItem("Open Logs", self._open_logs),
             MenuItem("Open Config", self._open_config),
             Menu.SEPARATOR,

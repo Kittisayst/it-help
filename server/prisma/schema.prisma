@@ -22,6 +22,7 @@ model Computer {
 
   reports     Report[]
   alerts      Alert[]
+  messages    Message[]
 }
 
 model Report {
@@ -54,9 +55,35 @@ model Report {
   software     String?
   antivirusStatus String?
 
+  printers        String?
+  windowsLicense  String?
+  officeLicense   String?
+  startupPrograms String?
+  sharedFolders   String?
+  usbDevices      String?
+  windowsUpdate   String?
+
   createdAt   DateTime @default(now())
 
   @@index([computerId, createdAt])
+}
+
+model Message {
+  id          String   @id @default(cuid())
+  computerId  String?
+  computer    Computer? @relation(fields: [computerId], references: [id], onDelete: Cascade)
+
+  hostname    String
+  department  String?
+  ipAddress   String?
+  message     String
+  read        Boolean  @default(false)
+  readAt      DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([read])
+  @@index([createdAt])
 }
 
 model Alert {

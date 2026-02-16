@@ -75,6 +75,13 @@ from collectors import (
     collect_event_logs,
     collect_software,
     collect_antivirus,
+    collect_printers,
+    collect_windows_license,
+    collect_office_license,
+    collect_startup,
+    collect_shared_folders,
+    collect_usb_devices,
+    collect_windows_update,
 )
 
 # System tray (optional - gracefully skip if not available)
@@ -113,6 +120,13 @@ def collect_all_data():
         ("Processes", collect_processes, {"top_count": CONFIG.get("top_processes_count", 15)}),
         ("Event Logs", collect_event_logs, {"max_count": CONFIG.get("event_log_count", 20)}),
         ("Antivirus", collect_antivirus, {}),
+        ("Printers", collect_printers, {}),
+        ("Windows License", collect_windows_license, {}),
+        ("Office License", collect_office_license, {}),
+        ("Startup Programs", collect_startup, {}),
+        ("Shared Folders", collect_shared_folders, {}),
+        ("USB Devices", collect_usb_devices, {}),
+        ("Windows Update", collect_windows_update, {}),
     ]
 
     if CONFIG.get("collect_software", True):

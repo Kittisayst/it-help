@@ -66,6 +66,13 @@ export async function GET(
             eventLogs: lastReport.eventLogs ? JSON.parse(lastReport.eventLogs) : null,
             software: lastReport.software ? JSON.parse(lastReport.software) : null,
             antivirusStatus: lastReport.antivirusStatus,
+            printers: lastReport.printers ? JSON.parse(lastReport.printers) : null,
+            windowsLicense: lastReport.windowsLicense ? JSON.parse(lastReport.windowsLicense) : null,
+            officeLicense: lastReport.officeLicense ? JSON.parse(lastReport.officeLicense) : null,
+            startupPrograms: lastReport.startupPrograms ? JSON.parse(lastReport.startupPrograms) : null,
+            sharedFolders: lastReport.sharedFolders ? JSON.parse(lastReport.sharedFolders) : null,
+            usbDevices: lastReport.usbDevices ? JSON.parse(lastReport.usbDevices) : null,
+            windowsUpdate: lastReport.windowsUpdate ? JSON.parse(lastReport.windowsUpdate) : null,
           }
         : null,
       history: computer.reports.map((r) => ({
