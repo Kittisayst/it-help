@@ -26,6 +26,7 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
+  Cog,
 } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { UsageBar } from "@/components/usage-bar";
@@ -112,7 +113,7 @@ export default function ComputerDetailPage() {
   const params = useParams();
   const [computer, setComputer] = useState<ComputerDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"overview" | "processes" | "events" | "software" | "printers" | "licenses" | "startup" | "system" | "actions">("overview");
+  const [tab, setTab] = useState<"overview" | "processes" | "events" | "software" | "printers" | "licenses" | "startup" | "services" | "system" | "actions">("overview");
   const [commands, setCommands] = useState<Array<{ id: string; action: string; params: string | null; status: string; result: string | null; createdAt: string; executedAt: string | null }>>([]);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [customScript, setCustomScript] = useState("");
@@ -249,6 +250,7 @@ export default function ComputerDetailPage() {
           { key: "printers", label: "Printers", icon: Printer },
           { key: "licenses", label: "Licenses", icon: KeyRound },
           { key: "startup", label: "Startup", icon: Play },
+          { key: "services", label: "Services", icon: Cog },
           { key: "system", label: "System", icon: Settings },
           { key: "actions", label: "Remote Actions", icon: Terminal },
         ].map((t) => (
@@ -734,6 +736,83 @@ export default function ComputerDetailPage() {
               </div>
             ) : (
               <p className="text-muted text-center py-4">No update data available</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Services Tab */}
+      {tab === "services" && (
+        <div className="space-y-6">
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Cog className="w-4 h-4" />
+              Windows Services
+            </h3>
+            {report?.services && Array.isArray(report.services) && report.services.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border text-muted">
+                      <th className="text-left py-3 px-4">Service Name</th>
+                      <th className="text-left py-3 px-4">Display Name</th>
+                      <th className="text-left py-3 px-4">Status</th>
+                      <th className="text-left py-3 px-4">Startup Type</th>
+                      <th className="text-left py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {report.services.map((svc: any, i: number) => (
+                      <tr key={i} className="border-b border-border/50 hover:bg-border/20">
+                        <td className="py-3 px-4 font-mono text-xs">{svc.name}</td>
+                        <td className="py-3 px-4">{svc.displayName}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            svc.status === "Running" 
+                              ? "bg-emerald-500/20 text-emerald-400" 
+                              : "bg-red-500/20 text-red-400"
+                          }`}>
+                            {svc.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-muted">{svc.startType}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex gap-2">
+                            {svc.status === "Running" ? (
+                              <>
+                                <button
+                                  onClick={() => sendCommand("service_stop", { service_name: svc.name })}
+                                  disabled={actionLoading !== null}
+                                  className="px-3 py-1 text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                                >
+                                  Stop
+                                </button>
+                                <button
+                                  onClick={() => sendCommand("service_restart", { service_name: svc.name })}
+                                  disabled={actionLoading !== null}
+                                  className="px-3 py-1 text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+                                >
+                                  Restart
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => sendCommand("service_start", { service_name: svc.name })}
+                                disabled={actionLoading !== null}
+                                className="px-3 py-1 text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded hover:bg-emerald-500/30 transition-colors disabled:opacity-50"
+                              >
+                                Start
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-muted text-center py-4">No services data available</p>
             )}
           </div>
         </div>

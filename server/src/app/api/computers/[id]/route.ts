@@ -73,6 +73,7 @@ export async function GET(
             sharedFolders: lastReport.sharedFolders ? JSON.parse(lastReport.sharedFolders) : null,
             usbDevices: lastReport.usbDevices ? JSON.parse(lastReport.usbDevices) : null,
             windowsUpdate: lastReport.windowsUpdate ? JSON.parse(lastReport.windowsUpdate) : null,
+            services: lastReport.services ? JSON.parse(lastReport.services) : null,
           }
         : null,
       history: computer.reports.map((r) => ({
