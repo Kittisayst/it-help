@@ -207,82 +207,47 @@ class AgentTray:
         def _send():
             import ctypes
             import logging
+            import socket
             logger = logging.getLogger("ITMonitorAgent")
             
             try:
                 logger.info("=== Send Message to IT: STARTED ===")
                 
-                # Test: show a simple MessageBox first to confirm function is called
-                result = ctypes.windll.user32.MessageBoxW(
-                    0, 
-                    "Function called! Click OK to continue with message input.",
-                    "IT Monitor - Debug", 
-                    0x40 | 0x00010000
-                )
-                logger.info(f"Debug MessageBox shown, result: {result}")
-                
-                import subprocess
-                import tempfile
-                import socket
-
-                # Create temp file for the message output
-                tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, prefix='itmsg_')
-                tmp_path = tmp.name
-                tmp.close()
-                logger.info(f"Temp file created: {tmp_path}")
-
-                # VBScript that shows InputBox and writes result to temp file
-                vbs_content = (
-                    'Dim msg\r\n'
-                    'msg = InputBox("Type your message to IT Support:", "IT Monitor - Send Message", "")\r\n'
-                    'If msg <> "" Then\r\n'
-                    '    Dim fso, f\r\n'
-                    '    Set fso = CreateObject("Scripting.FileSystemObject")\r\n'
-                    '    Set f = fso.CreateTextFile("' + tmp_path.replace("\\", "\\\\") + '", True)\r\n'
-                    '    f.Write msg\r\n'
-                    '    f.Close\r\n'
-                    'End If\r\n'
-                )
-
-                vbs_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.vbs', delete=False, prefix='itmsg_', encoding='utf-8')
-                vbs_tmp.write(vbs_content)
-                vbs_path = vbs_tmp.name
-                vbs_tmp.close()
-                logger.info(f"VBS script created: {vbs_path}")
-
-                # Use wscript (GUI mode)
-                logger.info("Launching wscript...")
-                result = subprocess.run(
-                    ["wscript", vbs_path],
-                    timeout=120,
-                )
-                logger.info(f"VBS exited with code {result.returncode}")
-
-                # Read message from temp file
-                message = ""
+                # Use tkinter for GUI input dialog
                 try:
-                    if os.path.exists(tmp_path):
-                        with open(tmp_path, "r", encoding="utf-8") as f:
-                            message = f.read().strip()
-                        logger.info(f"Message read from file: '{message[:50]}...'")
-                    else:
-                        logger.warning("Temp file not found - user likely cancelled")
-                except Exception as e:
-                    logger.error(f"Read error: {e}")
+                    import tkinter as tk
+                    from tkinter import simpledialog
+                    
+                    root = tk.Tk()
+                    root.withdraw()
+                    root.attributes('-topmost', True)
+                    
+                    message = simpledialog.askstring(
+                        "IT Monitor - Send Message",
+                        "Type your message to IT Support:",
+                        parent=root
+                    )
+                    root.destroy()
+                    
+                    logger.info(f"User input: {message[:50] if message else 'None'}...")
+                    
+                except ImportError:
+                    logger.warning("tkinter not available")
+                    ctypes.windll.user32.MessageBoxW(
+                        0,
+                        "Please use the web dashboard to send messages.\ntkinter module is not available.",
+                        "IT Monitor",
+                        0x30 | 0x00010000
+                    )
+                    return
 
-                # Cleanup temp files
-                for p in [vbs_path, tmp_path]:
-                    try:
-                        if os.path.exists(p):
-                            os.remove(p)
-                    except Exception as e:
-                        logger.error(f"Cleanup error for {p}: {e}")
-
-                if not message:
+                if not message or not message.strip():
                     logger.info("No message - user cancelled or empty")
                     return
 
-                # Send message to server
+                message = message.strip()
+                logger.info(f"Sending message: '{message[:50]}...'")
+
                 import requests
                 url = f"{self.config.get('server_url', 'http://localhost:3000')}/api/agent/message"
                 payload = {
@@ -341,27 +306,103 @@ class AgentTray:
             pass
 
     def _open_config(self, icon, item):
-        """Open config.json in default editor."""
+        """Open config file."""
         try:
             config_path = os.path.join(self._base_dir, "config.json")
-            if os.path.exists(config_path):
-                os.startfile(config_path)
+            os.startfile(config_path)
         except Exception:
             pass
 
+    def _is_autostart_enabled(self):
+        """Check if agent is set to auto-start."""
+        try:
+            import winreg
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0,
+                winreg.KEY_READ
+            )
+            try:
+                winreg.QueryValueEx(key, "ITMonitorAgent")
+                winreg.CloseKey(key)
+                return True
+            except FileNotFoundError:
+                winreg.CloseKey(key)
+                return False
+        except Exception:
+            return False
+
+    def _toggle_autostart(self, icon, item):
+        """Toggle auto-start on Windows login."""
+        import ctypes
+        import logging
+        logger = logging.getLogger("ITMonitorAgent")
+        
+        try:
+            import winreg
+            import sys
+            
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0,
+                winreg.KEY_SET_VALUE | winreg.KEY_READ
+            )
+            
+            if self._is_autostart_enabled():
+                winreg.DeleteValue(key, "ITMonitorAgent")
+                winreg.CloseKey(key)
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    "Auto-start disabled.\nAgent will not start automatically on login.",
+                    "IT Monitor",
+                    0x40 | 0x00010000
+                )
+                logger.info("Auto-start disabled")
+            else:
+                if getattr(sys, 'frozen', False):
+                    exe_path = sys.executable
+                else:
+                    exe_path = os.path.join(self._base_dir, "agent.exe")
+                
+                winreg.SetValueEx(key, "ITMonitorAgent", 0, winreg.REG_SZ, f'"{exe_path}"')
+                winreg.CloseKey(key)
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    "Auto-start enabled.\nAgent will start automatically on login.",
+                    "IT Monitor",
+                    0x40 | 0x00010000
+                )
+                logger.info(f"Auto-start enabled: {exe_path}")
+            
+            if self.icon:
+                self.icon.menu = self.build_menu()
+                
+        except Exception as e:
+            logger.error(f"Toggle auto-start error: {e}")
+            ctypes.windll.user32.MessageBoxW(
+                0,
+                f"Failed to toggle auto-start:\n{str(e)[:200]}",
+                "IT Monitor - Error",
+                0x10 | 0x00010000
+            )
+
     def _quit(self, icon, item):
         """Quit the agent."""
-        icon.stop()
-        if self.on_quit:
-            self.on_quit()
+        if self.icon:
+            self.icon.stop()
+        os._exit(0)
 
     def build_menu(self):
-        """Build the tray context menu."""
+        """Build the context menu for the tray icon."""
         return Menu(
             MenuItem("IT Monitor Agent", None, enabled=False),
             Menu.SEPARATOR,
             MenuItem("System Info", self._show_info),
             MenuItem("Send Message to IT", self._send_message_to_it),
+            Menu.SEPARATOR,
+            MenuItem("Auto-start on Login", self._toggle_autostart, checked=lambda item: self._is_autostart_enabled()),
             Menu.SEPARATOR,
             MenuItem("Open Logs", self._open_logs),
             MenuItem("Open Config", self._open_config),
