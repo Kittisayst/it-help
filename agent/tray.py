@@ -213,61 +213,87 @@ class AgentTray:
             try:
                 logger.info("=== Send Message to IT: STARTED ===")
                 
-                # Use tkinter with Text widget for Unicode support
+                # Use PowerShell for Unicode-safe input dialog
+                import subprocess
+                import tempfile
+                
+                tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, prefix='itmsg_')
+                tmp_path = tmp.name
+                tmp.close()
+                
+                ps_script = f'''
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+$form = New-Object System.Windows.Forms.Form
+$form.Text = "IT Monitor - Send Message"
+$form.Size = New-Object System.Drawing.Size(450, 250)
+$form.StartPosition = "CenterScreen"
+$form.TopMost = $true
+$form.Font = New-Object System.Drawing.Font("Segoe UI", 10)
+
+$label = New-Object System.Windows.Forms.Label
+$label.Text = "Type your message to IT Support:"
+$label.Location = New-Object System.Drawing.Point(15, 15)
+$label.Size = New-Object System.Drawing.Size(400, 25)
+$form.Controls.Add($label)
+
+$textBox = New-Object System.Windows.Forms.TextBox
+$textBox.Location = New-Object System.Drawing.Point(15, 45)
+$textBox.Size = New-Object System.Drawing.Size(400, 100)
+$textBox.Multiline = $true
+$textBox.ScrollBars = "Vertical"
+$form.Controls.Add($textBox)
+
+$okBtn = New-Object System.Windows.Forms.Button
+$okBtn.Text = "OK"
+$okBtn.Location = New-Object System.Drawing.Point(130, 160)
+$okBtn.Size = New-Object System.Drawing.Size(80, 30)
+$okBtn.DialogResult = [System.Windows.Forms.DialogResult]::OK
+$form.Controls.Add($okBtn)
+$form.AcceptButton = $okBtn
+
+$cancelBtn = New-Object System.Windows.Forms.Button
+$cancelBtn.Text = "Cancel"
+$cancelBtn.Location = New-Object System.Drawing.Point(230, 160)
+$cancelBtn.Size = New-Object System.Drawing.Size(80, 30)
+$cancelBtn.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+$form.Controls.Add($cancelBtn)
+$form.CancelButton = $cancelBtn
+
+$result = $form.ShowDialog()
+if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
+    [System.IO.File]::WriteAllText("{tmp_path.replace(chr(92), '/')}", $textBox.Text, [System.Text.Encoding]::UTF8)
+}}
+'''
+                ps_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.ps1', delete=False, prefix='itmsg_', encoding='utf-8')
+                ps_tmp.write(ps_script)
+                ps_path = ps_tmp.name
+                ps_tmp.close()
+                
+                logger.info(f"Launching PowerShell dialog: {ps_path}")
+                subprocess.run(
+                    ["powershell", "-ExecutionPolicy", "Bypass", "-File", ps_path],
+                    timeout=120,
+                )
+                
+                # Read message
+                message = ""
                 try:
-                    import tkinter as tk
-                    from tkinter import ttk
-                    
-                    message = [None]
-                    
-                    def on_ok():
-                        message[0] = text.get("1.0", "end-1c").strip()
-                        dialog.destroy()
-                    
-                    def on_cancel():
-                        dialog.destroy()
-                    
-                    dialog = tk.Tk()
-                    dialog.title("IT Monitor - Send Message")
-                    dialog.geometry("400x200")
-                    dialog.attributes('-topmost', True)
-                    
-                    # Label
-                    label = tk.Label(dialog, text="Type your message to IT Support:")
-                    label.pack(pady=10)
-                    
-                    # Text widget with Unicode support
-                    text = tk.Text(dialog, width=45, height=6, wrap="word")
-                    text.pack(padx=10, pady=5)
-                    text.focus_set()
-                    
-                    # Buttons
-                    btn_frame = tk.Frame(dialog)
-                    btn_frame.pack(pady=10)
-                    
-                    ok_btn = tk.Button(btn_frame, text="OK", width=10, command=on_ok)
-                    ok_btn.pack(side="left", padx=5)
-                    
-                    cancel_btn = tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel)
-                    cancel_btn.pack(side="left", padx=5)
-                    
-                    # Bind Enter key
-                    dialog.bind('<Control-Return>', lambda e: on_ok())
-                    
-                    dialog.mainloop()
-                    
-                    message = message[0]
-                    logger.info(f"User input: {message[:50] if message else 'None'}...")
-                    
-                except ImportError:
-                    logger.warning("tkinter not available")
-                    ctypes.windll.user32.MessageBoxW(
-                        0,
-                        "Please use the web dashboard to send messages.\ntkinter module is not available.",
-                        "IT Monitor",
-                        0x30 | 0x00010000
-                    )
-                    return
+                    if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
+                        with open(tmp_path, "r", encoding="utf-8-sig") as f:
+                            message = f.read().strip()
+                        logger.info(f"Message read: '{message[:50]}...'")
+                except Exception as e:
+                    logger.error(f"Read error: {e}")
+                
+                # Cleanup
+                for p in [ps_path, tmp_path]:
+                    try:
+                        if os.path.exists(p):
+                            os.remove(p)
+                    except Exception:
+                        pass
 
                 if not message:
                     logger.info("No message - user cancelled or empty")
