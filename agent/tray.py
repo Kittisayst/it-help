@@ -213,22 +213,50 @@ class AgentTray:
             try:
                 logger.info("=== Send Message to IT: STARTED ===")
                 
-                # Use tkinter for GUI input dialog
+                # Use tkinter with Text widget for Unicode support
                 try:
                     import tkinter as tk
-                    from tkinter import simpledialog
+                    from tkinter import ttk
                     
-                    root = tk.Tk()
-                    root.withdraw()
-                    root.attributes('-topmost', True)
+                    message = [None]
                     
-                    message = simpledialog.askstring(
-                        "IT Monitor - Send Message",
-                        "Type your message to IT Support:",
-                        parent=root
-                    )
-                    root.destroy()
+                    def on_ok():
+                        message[0] = text.get("1.0", "end-1c").strip()
+                        dialog.destroy()
                     
+                    def on_cancel():
+                        dialog.destroy()
+                    
+                    dialog = tk.Tk()
+                    dialog.title("IT Monitor - Send Message")
+                    dialog.geometry("400x200")
+                    dialog.attributes('-topmost', True)
+                    
+                    # Label
+                    label = tk.Label(dialog, text="Type your message to IT Support:")
+                    label.pack(pady=10)
+                    
+                    # Text widget with Unicode support
+                    text = tk.Text(dialog, width=45, height=6, wrap="word")
+                    text.pack(padx=10, pady=5)
+                    text.focus_set()
+                    
+                    # Buttons
+                    btn_frame = tk.Frame(dialog)
+                    btn_frame.pack(pady=10)
+                    
+                    ok_btn = tk.Button(btn_frame, text="OK", width=10, command=on_ok)
+                    ok_btn.pack(side="left", padx=5)
+                    
+                    cancel_btn = tk.Button(btn_frame, text="Cancel", width=10, command=on_cancel)
+                    cancel_btn.pack(side="left", padx=5)
+                    
+                    # Bind Enter key
+                    dialog.bind('<Control-Return>', lambda e: on_ok())
+                    
+                    dialog.mainloop()
+                    
+                    message = message[0]
                     logger.info(f"User input: {message[:50] if message else 'None'}...")
                     
                 except ImportError:
@@ -241,11 +269,10 @@ class AgentTray:
                     )
                     return
 
-                if not message or not message.strip():
+                if not message:
                     logger.info("No message - user cancelled or empty")
                     return
 
-                message = message.strip()
                 logger.info(f"Sending message: '{message[:50]}...'")
 
                 import requests
@@ -335,58 +362,61 @@ class AgentTray:
 
     def _toggle_autostart(self, icon, item):
         """Toggle auto-start on Windows login."""
-        import ctypes
-        import logging
-        logger = logging.getLogger("ITMonitorAgent")
-        
-        try:
-            import winreg
-            import sys
+        def _toggle():
+            import ctypes
+            import logging
+            logger = logging.getLogger("ITMonitorAgent")
             
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Run",
-                0,
-                winreg.KEY_SET_VALUE | winreg.KEY_READ
-            )
-            
-            if self._is_autostart_enabled():
-                winreg.DeleteValue(key, "ITMonitorAgent")
-                winreg.CloseKey(key)
-                ctypes.windll.user32.MessageBoxW(
+            try:
+                import winreg
+                import sys
+                
+                key = winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Run",
                     0,
-                    "Auto-start disabled.\nAgent will not start automatically on login.",
-                    "IT Monitor",
-                    0x40 | 0x00010000
+                    winreg.KEY_SET_VALUE | winreg.KEY_READ
                 )
-                logger.info("Auto-start disabled")
-            else:
-                if getattr(sys, 'frozen', False):
-                    exe_path = sys.executable
+                
+                if self._is_autostart_enabled():
+                    winreg.DeleteValue(key, "ITMonitorAgent")
+                    winreg.CloseKey(key)
+                    ctypes.windll.user32.MessageBoxW(
+                        0,
+                        "Auto-start disabled.\nAgent will not start automatically on login.",
+                        "IT Monitor",
+                        0x40 | 0x00010000
+                    )
+                    logger.info("Auto-start disabled")
                 else:
-                    exe_path = os.path.join(self._base_dir, "agent.exe")
+                    if getattr(sys, 'frozen', False):
+                        exe_path = sys.executable
+                    else:
+                        exe_path = os.path.join(self._base_dir, "agent.exe")
+                    
+                    winreg.SetValueEx(key, "ITMonitorAgent", 0, winreg.REG_SZ, f'"{exe_path}"')
+                    winreg.CloseKey(key)
+                    ctypes.windll.user32.MessageBoxW(
+                        0,
+                        "Auto-start enabled.\nAgent will start automatically on login.",
+                        "IT Monitor",
+                        0x40 | 0x00010000
+                    )
+                    logger.info(f"Auto-start enabled: {exe_path}")
                 
-                winreg.SetValueEx(key, "ITMonitorAgent", 0, winreg.REG_SZ, f'"{exe_path}"')
-                winreg.CloseKey(key)
+                if self.icon:
+                    self.icon.menu = self.build_menu()
+                    
+            except Exception as e:
+                logger.error(f"Toggle auto-start error: {e}")
                 ctypes.windll.user32.MessageBoxW(
                     0,
-                    "Auto-start enabled.\nAgent will start automatically on login.",
-                    "IT Monitor",
-                    0x40 | 0x00010000
+                    f"Failed to toggle auto-start:\n{str(e)[:200]}",
+                    "IT Monitor - Error",
+                    0x10 | 0x00010000
                 )
-                logger.info(f"Auto-start enabled: {exe_path}")
-            
-            if self.icon:
-                self.icon.menu = self.build_menu()
-                
-        except Exception as e:
-            logger.error(f"Toggle auto-start error: {e}")
-            ctypes.windll.user32.MessageBoxW(
-                0,
-                f"Failed to toggle auto-start:\n{str(e)[:200]}",
-                "IT Monitor - Error",
-                0x10 | 0x00010000
-            )
+        
+        threading.Thread(target=_toggle, daemon=True).start()
 
     def _quit(self, icon, item):
         """Quit the agent."""
