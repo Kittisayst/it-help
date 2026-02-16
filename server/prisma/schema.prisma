@@ -82,10 +82,14 @@ model Message {
   message     String
   read        Boolean  @default(false)
   readAt      DateTime?
+  resolved    Boolean  @default(false)
+  resolvedAt  DateTime?
+  reply       String?
 
   createdAt   DateTime @default(now())
 
   @@index([read])
+  @@index([resolved])
   @@index([createdAt])
 }
 

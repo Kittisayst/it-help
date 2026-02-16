@@ -22,6 +22,7 @@ export default function AlertsPage() {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "resolved">("active");
+  const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
 
   const fetchAlerts = async () => {
     try {
@@ -52,6 +53,43 @@ export default function AlertsPage() {
       fetchAlerts();
     } catch (err) {
       console.error("Failed to resolve alert:", err);
+    }
+  };
+
+  const resolveSelected = async () => {
+    if (selectedAlerts.size === 0) return;
+    try {
+      await Promise.all(
+        Array.from(selectedAlerts).map(id =>
+          fetch(`/api/alerts/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resolved: true }),
+          })
+        )
+      );
+      setSelectedAlerts(new Set());
+      fetchAlerts();
+    } catch (err) {
+      console.error("Failed to resolve selected alerts:", err);
+    }
+  };
+
+  const toggleAlert = (id: string) => {
+    const newSelected = new Set(selectedAlerts);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedAlerts(newSelected);
+  };
+
+  const toggleAll = () => {
+    if (selectedAlerts.size === alerts.length) {
+      setSelectedAlerts(new Set());
+    } else {
+      setSelectedAlerts(new Set(alerts.map(a => a.id)));
     }
   };
 
@@ -91,20 +129,34 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      <div className="flex gap-2">
-        {(["active", "resolved", "all"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
-              filter === f
-                ? "bg-accent text-white"
-                : "bg-card border border-border text-muted hover:text-foreground"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          {(["active", "resolved", "all"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                filter === f
+                  ? "bg-accent text-white"
+                  : "bg-card border border-border text-muted hover:text-foreground"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        {selectedAlerts.size > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted">{selectedAlerts.size} selected</span>
+            <button
+              onClick={resolveSelected}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition-colors text-sm font-medium"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Resolve Selected
+            </button>
+          </div>
+        )}
       </div>
 
       {alerts.length === 0 ? (
@@ -115,6 +167,15 @@ export default function AlertsPage() {
         </div>
       ) : (
         <div className="space-y-3">
+          <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg">
+            <input
+              type="checkbox"
+              checked={selectedAlerts.size === alerts.length && alerts.length > 0}
+              onChange={toggleAll}
+              className="w-4 h-4 rounded border-border"
+            />
+            <span className="text-sm text-muted">Select all</span>
+          </div>
           {alerts.map((alert) => (
             <div
               key={alert.id}
@@ -127,6 +188,12 @@ export default function AlertsPage() {
               }`}
             >
               <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedAlerts.has(alert.id)}
+                  onChange={() => toggleAlert(alert.id)}
+                  className="w-4 h-4 rounded border-border"
+                />
                 <AlertTriangle
                   className={`w-5 h-5 shrink-0 ${
                     alert.resolved
