@@ -84,6 +84,9 @@ from collectors import (
     collect_windows_update,
 )
 
+# Remote actions
+from remote_actions import execute_command
+
 # System tray (optional - gracefully skip if not available)
 tray = None
 try:
@@ -235,6 +238,55 @@ def send_offline_reports():
             logger.error(f"Error processing offline report {filename}: {e}")
 
 
+def poll_commands():
+    """Poll server for pending commands and execute them."""
+    import socket
+    url = f"{CONFIG['server_url']}/api/agent/commands"
+    headers = {
+        "Content-Type": "application/json",
+        "x-api-key": CONFIG["api_key"],
+    }
+    params = {"hostname": socket.gethostname()}
+
+    try:
+        resp = requests.get(url, headers=headers, params=params, timeout=10)
+        if resp.status_code != 200:
+            return
+
+        commands = resp.json()
+        if not commands:
+            return
+
+        logger.info(f"Received {len(commands)} pending command(s)")
+
+        for cmd in commands:
+            cmd_id = cmd.get("id")
+            action = cmd.get("action")
+            cmd_params = cmd.get("params")
+
+            logger.info(f"Executing command {cmd_id}: {action}")
+
+            result = execute_command(action, cmd_params)
+
+            # Report result back to server
+            try:
+                result_url = f"{CONFIG['server_url']}/api/agent/commands/{cmd_id}/result"
+                requests.post(
+                    result_url,
+                    json=result,
+                    headers=headers,
+                    timeout=10,
+                )
+                logger.info(f"Command {cmd_id} result sent: success={result.get('success')}")
+            except Exception as e:
+                logger.error(f"Failed to send command result: {e}")
+
+    except requests.exceptions.ConnectionError:
+        pass  # Server unreachable, skip silently
+    except Exception as e:
+        logger.error(f"Error polling commands: {e}")
+
+
 # Flag to control the agent loop
 _running = True
 
@@ -255,6 +307,9 @@ def agent_loop():
         try:
             # Send any offline reports first
             send_offline_reports()
+
+            # Poll for remote commands
+            poll_commands()
 
             # Collect data
             logger.info("Collecting system data...")

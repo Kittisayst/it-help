@@ -23,6 +23,7 @@ model Computer {
   reports     Report[]
   alerts      Alert[]
   messages    Message[]
+  commands    Command[]
 }
 
 model Report {
@@ -84,6 +85,24 @@ model Message {
 
   @@index([read])
   @@index([createdAt])
+}
+
+model Command {
+  id          String   @id @default(cuid())
+  computerId  String
+  computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+
+  action      String
+  params      String?
+  status      String   @default("pending")
+  result      String?
+  createdBy   String   @default("admin")
+
+  createdAt   DateTime @default(now())
+  executedAt  DateTime?
+
+  @@index([computerId, status])
+  @@index([status])
 }
 
 model Alert {
