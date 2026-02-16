@@ -207,59 +207,67 @@ class AgentTray:
         def _send():
             try:
                 import ctypes
-                import ctypes.wintypes
-
-                # Use a simple InputBox via VBScript (no extra dependencies)
                 import subprocess
                 import tempfile
                 import socket
+                import logging
 
-                vbs_content = '''
-Dim msg
-msg = InputBox("ພິມຂໍ້ຄວາມຫາ IT Support:", "IT Monitor - Send Message", "")
-If msg <> "" Then
-    Dim fso, f
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    Set f = fso.CreateTextFile("{tmpfile}", True)
-    f.Write msg
-    f.Close
-End If
-'''
-                # Create temp file for the message
+                logger = logging.getLogger("ITMonitorAgent")
+
+                # Create temp file for the message output
                 tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, prefix='itmsg_')
                 tmp_path = tmp.name
                 tmp.close()
 
-                # Create VBS script
+                # VBScript that shows InputBox and writes result to temp file
+                vbs_content = (
+                    'Dim msg\r\n'
+                    'msg = InputBox("Type your message to IT Support:", "IT Monitor - Send Message", "")\r\n'
+                    'If msg <> "" Then\r\n'
+                    '    Dim fso, f\r\n'
+                    '    Set fso = CreateObject("Scripting.FileSystemObject")\r\n'
+                    '    Set f = fso.CreateTextFile("' + tmp_path.replace("\\", "\\\\") + '", True)\r\n'
+                    '    f.Write msg\r\n'
+                    '    f.Close\r\n'
+                    'End If\r\n'
+                )
+
                 vbs_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.vbs', delete=False, prefix='itmsg_')
-                vbs_tmp.write(vbs_content.replace("{tmpfile}", tmp_path.replace("\\", "\\\\")))
+                vbs_tmp.write(vbs_content)
                 vbs_path = vbs_tmp.name
                 vbs_tmp.close()
 
-                # Run VBScript
-                subprocess.run(
-                    ["cscript", "//nologo", vbs_path],
-                    timeout=120,
-                    creationflags=subprocess.CREATE_NO_WINDOW,
-                )
+                logger.info(f"Send Message: launching VBS dialog: {vbs_path}")
 
-                # Read message
+                # Use wscript (GUI mode) — NOT cscript, and NO CREATE_NO_WINDOW
+                result = subprocess.run(
+                    ["wscript", vbs_path],
+                    timeout=120,
+                )
+                logger.info(f"Send Message: VBS exited with code {result.returncode}")
+
+                # Read message from temp file
                 message = ""
                 try:
                     with open(tmp_path, "r", encoding="utf-8") as f:
                         message = f.read().strip()
-                except Exception:
+                except FileNotFoundError:
                     pass
+                except Exception as e:
+                    logger.error(f"Send Message: read error: {e}")
 
                 # Cleanup temp files
-                try:
-                    os.remove(vbs_path)
-                    os.remove(tmp_path)
-                except Exception:
-                    pass
+                for p in [vbs_path, tmp_path]:
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
 
                 if not message:
+                    logger.info("Send Message: user cancelled or empty message")
                     return
+
+                logger.info(f"Send Message: sending '{message[:50]}...'")
 
                 # Send message to server
                 import requests
@@ -279,22 +287,26 @@ End If
                     resp = requests.post(url, json=payload, headers=headers, timeout=10)
                     if resp.status_code == 200:
                         ctypes.windll.user32.MessageBoxW(
-                            0, "ສົ່ງຂໍ້ຄວາມຫາ IT ສຳເລັດແລ້ວ!",
+                            0, "Send message to IT success!",
                             "IT Monitor", 0x40 | 0x00010000
                         )
+                        logger.info("Send Message: sent successfully")
                     else:
                         ctypes.windll.user32.MessageBoxW(
-                            0, f"ສົ່ງບໍ່ສຳເລັດ: Server ຕອບ {resp.status_code}",
+                            0, f"Send failed: Server responded {resp.status_code}",
                             "IT Monitor", 0x10 | 0x00010000
                         )
+                        logger.error(f"Send Message: server error {resp.status_code}")
                 except Exception as e:
                     ctypes.windll.user32.MessageBoxW(
-                        0, f"ສົ່ງບໍ່ສຳເລັດ: {str(e)[:200]}",
+                        0, f"Send failed: {str(e)[:200]}",
                         "IT Monitor", 0x10 | 0x00010000
                     )
+                    logger.error(f"Send Message: request error: {e}")
 
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger("ITMonitorAgent").error(f"Send Message error: {e}")
 
         threading.Thread(target=_send, daemon=True).start()
 
