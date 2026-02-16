@@ -229,6 +229,14 @@ export default function ComputerDetailPage() {
             {computer.ipAddress} | {computer.department || "General"} | Last seen: {new Date(computer.lastSeenAt).toLocaleString()}
           </p>
         </div>
+        <button
+          onClick={() => window.open(`rdp://${computer.ipAddress}`, "_blank")}
+          className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
+          title="Open Remote Desktop Connection"
+        >
+          <Monitor className="w-4 h-4" />
+          Connect RDP
+        </button>
       </div>
 
       {/* Tabs */}

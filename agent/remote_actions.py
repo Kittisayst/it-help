@@ -28,6 +28,9 @@ ALLOWED_ACTIONS = [
     "flush_dns",
     "gpupdate",
     "sfc_scan",
+    "service_start",
+    "service_stop",
+    "service_restart",
 ]
 
 
@@ -299,6 +302,68 @@ def action_sfc_scan(params):
     return {"success": True, "output": output}
 
 
+def action_service_start(params):
+    """Start a Windows service."""
+    if not params:
+        return {"success": False, "output": "Missing params: need 'service_name'"}
+
+    import json
+    try:
+        p = json.loads(params) if isinstance(params, str) else params
+    except Exception:
+        return {"success": False, "output": "Invalid params format"}
+
+    service_name = p.get("service_name", "")
+    if not service_name:
+        return {"success": False, "output": "Missing service_name"}
+
+    logger.info(f"Remote action: START SERVICE {service_name}")
+    output = _run_cmd(f"net start \"{service_name}\"", timeout=30)
+    return {"success": True, "output": output}
+
+
+def action_service_stop(params):
+    """Stop a Windows service."""
+    if not params:
+        return {"success": False, "output": "Missing params: need 'service_name'"}
+
+    import json
+    try:
+        p = json.loads(params) if isinstance(params, str) else params
+    except Exception:
+        return {"success": False, "output": "Invalid params format"}
+
+    service_name = p.get("service_name", "")
+    if not service_name:
+        return {"success": False, "output": "Missing service_name"}
+
+    logger.info(f"Remote action: STOP SERVICE {service_name}")
+    output = _run_cmd(f"net stop \"{service_name}\"", timeout=30)
+    return {"success": True, "output": output}
+
+
+def action_service_restart(params):
+    """Restart a Windows service."""
+    if not params:
+        return {"success": False, "output": "Missing params: need 'service_name'"}
+
+    import json
+    try:
+        p = json.loads(params) if isinstance(params, str) else params
+    except Exception:
+        return {"success": False, "output": "Invalid params format"}
+
+    service_name = p.get("service_name", "")
+    if not service_name:
+        return {"success": False, "output": "Missing service_name"}
+
+    logger.info(f"Remote action: RESTART SERVICE {service_name}")
+    output_stop = _run_cmd(f"net stop \"{service_name}\"", timeout=30)
+    time.sleep(2)
+    output_start = _run_cmd(f"net start \"{service_name}\"", timeout=30)
+    return {"success": True, "output": f"STOP:\n{output_stop}\n\nSTART:\n{output_start}"}
+
+
 # Handler map
 HANDLERS = {
     "restart": action_restart,
@@ -315,4 +380,7 @@ HANDLERS = {
     "flush_dns": action_flush_dns,
     "gpupdate": action_gpupdate,
     "sfc_scan": action_sfc_scan,
+    "service_start": action_service_start,
+    "service_stop": action_service_stop,
+    "service_restart": action_service_restart,
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { notifyOnAlert } from "@/lib/line-notify";
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,6 +72,7 @@ export async function POST(request: NextRequest) {
         sharedFolders: metrics.shared_folders ? JSON.stringify(metrics.shared_folders) : null,
         usbDevices: metrics.usb_devices ? JSON.stringify(metrics.usb_devices) : null,
         windowsUpdate: metrics.windows_update ? JSON.stringify(metrics.windows_update) : null,
+        services: metrics.services ? JSON.stringify(metrics.services) : null,
       },
     });
 
@@ -130,13 +130,6 @@ export async function POST(request: NextRequest) {
           },
         });
       }
-    }
-
-    // Send LINE notifications for alerts (non-blocking)
-    if (alerts.length > 0) {
-      notifyOnAlert(hostname, computer.id, alerts, metrics).catch((err) =>
-        console.error("[LINE Notify] Error:", err)
-      );
     }
 
     // Clean up old reports (keep last 24 hours)

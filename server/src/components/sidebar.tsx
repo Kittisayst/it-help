@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   MessageSquare,
   Activity,
-  Settings,
 } from "lucide-react";
 
 const navItems = [
@@ -16,7 +15,6 @@ const navItems = [
   { href: "/computers", label: "Computers", icon: Monitor },
   { href: "/alerts", label: "Alerts", icon: AlertTriangle },
   { href: "/messages", label: "Messages", icon: MessageSquare },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {

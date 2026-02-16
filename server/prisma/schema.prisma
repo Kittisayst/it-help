@@ -13,8 +13,9 @@ model Computer {
   ipAddress   String
   macAddress  String?
   osVersion   String?
-  department  String?
+  department  String   @default("General")
   label       String?
+  tags        String   @default("")
   apiKey      String
   lastSeenAt  DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -63,6 +64,7 @@ model Report {
   sharedFolders   String?
   usbDevices      String?
   windowsUpdate   String?
+  services        String?
 
   createdAt   DateTime @default(now())
 
@@ -103,19 +105,6 @@ model Command {
 
   @@index([computerId, status])
   @@index([status])
-}
-
-model NotifyConfig {
-  id              String   @id @default("default")
-  lineToken       String   @default("")
-  enabled         Boolean  @default(false)
-  cpuThreshold    Float    @default(90)
-  ramThreshold    Float    @default(85)
-  diskThreshold   Float    @default(90)
-  notifyOffline   Boolean  @default(true)
-  notifyEventLog  Boolean  @default(false)
-  cooldownMinutes Int      @default(15)
-  updatedAt       DateTime @updatedAt
 }
 
 model Alert {

@@ -82,6 +82,7 @@ from collectors import (
     collect_shared_folders,
     collect_usb_devices,
     collect_windows_update,
+    collect_services,
 )
 
 # Remote actions
@@ -133,6 +134,7 @@ def collect_all_data():
         ("Shared Folders", collect_shared_folders, {}),
         ("USB Devices", collect_usb_devices, {}),
         ("Windows Update", collect_windows_update, {}),
+        ("Services", collect_services, {}),
     ]
 
     if CONFIG.get("collect_software", True):

@@ -14,6 +14,7 @@ from .startup import collect_startup
 from .shared_folders import collect_shared_folders
 from .usb_devices import collect_usb_devices
 from .windows_update import collect_windows_update
+from .services import collect_services
 
 __all__ = [
     "collect_cpu",
@@ -32,4 +33,5 @@ __all__ = [
     "collect_shared_folders",
     "collect_usb_devices",
     "collect_windows_update",
+    "collect_services",
 ]
