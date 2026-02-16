@@ -205,19 +205,31 @@ class AgentTray:
     def _send_message_to_it(self, icon, item):
         """Open a dialog to send a message to IT support."""
         def _send():
+            import ctypes
+            import logging
+            logger = logging.getLogger("ITMonitorAgent")
+            
             try:
-                import ctypes
+                logger.info("=== Send Message to IT: STARTED ===")
+                
+                # Test: show a simple MessageBox first to confirm function is called
+                result = ctypes.windll.user32.MessageBoxW(
+                    0, 
+                    "Function called! Click OK to continue with message input.",
+                    "IT Monitor - Debug", 
+                    0x40 | 0x00010000
+                )
+                logger.info(f"Debug MessageBox shown, result: {result}")
+                
                 import subprocess
                 import tempfile
                 import socket
-                import logging
-
-                logger = logging.getLogger("ITMonitorAgent")
 
                 # Create temp file for the message output
                 tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, prefix='itmsg_')
                 tmp_path = tmp.name
                 tmp.close()
+                logger.info(f"Temp file created: {tmp_path}")
 
                 # VBScript that shows InputBox and writes result to temp file
                 vbs_content = (
@@ -232,42 +244,43 @@ class AgentTray:
                     'End If\r\n'
                 )
 
-                vbs_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.vbs', delete=False, prefix='itmsg_')
+                vbs_tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.vbs', delete=False, prefix='itmsg_', encoding='utf-8')
                 vbs_tmp.write(vbs_content)
                 vbs_path = vbs_tmp.name
                 vbs_tmp.close()
+                logger.info(f"VBS script created: {vbs_path}")
 
-                logger.info(f"Send Message: launching VBS dialog: {vbs_path}")
-
-                # Use wscript (GUI mode) — NOT cscript, and NO CREATE_NO_WINDOW
+                # Use wscript (GUI mode)
+                logger.info("Launching wscript...")
                 result = subprocess.run(
                     ["wscript", vbs_path],
                     timeout=120,
                 )
-                logger.info(f"Send Message: VBS exited with code {result.returncode}")
+                logger.info(f"VBS exited with code {result.returncode}")
 
                 # Read message from temp file
                 message = ""
                 try:
-                    with open(tmp_path, "r", encoding="utf-8") as f:
-                        message = f.read().strip()
-                except FileNotFoundError:
-                    pass
+                    if os.path.exists(tmp_path):
+                        with open(tmp_path, "r", encoding="utf-8") as f:
+                            message = f.read().strip()
+                        logger.info(f"Message read from file: '{message[:50]}...'")
+                    else:
+                        logger.warning("Temp file not found - user likely cancelled")
                 except Exception as e:
-                    logger.error(f"Send Message: read error: {e}")
+                    logger.error(f"Read error: {e}")
 
                 # Cleanup temp files
                 for p in [vbs_path, tmp_path]:
                     try:
-                        os.remove(p)
-                    except Exception:
-                        pass
+                        if os.path.exists(p):
+                            os.remove(p)
+                    except Exception as e:
+                        logger.error(f"Cleanup error for {p}: {e}")
 
                 if not message:
-                    logger.info("Send Message: user cancelled or empty message")
+                    logger.info("No message - user cancelled or empty")
                     return
-
-                logger.info(f"Send Message: sending '{message[:50]}...'")
 
                 # Send message to server
                 import requests
@@ -282,31 +295,39 @@ class AgentTray:
                     "Content-Type": "application/json",
                     "x-api-key": self.config.get("api_key", ""),
                 }
+                logger.info(f"Sending to {url}")
 
                 try:
                     resp = requests.post(url, json=payload, headers=headers, timeout=10)
+                    logger.info(f"Server response: {resp.status_code}")
                     if resp.status_code == 200:
                         ctypes.windll.user32.MessageBoxW(
-                            0, "Send message to IT success!",
+                            0, "Message sent to IT successfully!",
                             "IT Monitor", 0x40 | 0x00010000
                         )
-                        logger.info("Send Message: sent successfully")
+                        logger.info("SUCCESS")
                     else:
                         ctypes.windll.user32.MessageBoxW(
                             0, f"Send failed: Server responded {resp.status_code}",
                             "IT Monitor", 0x10 | 0x00010000
                         )
-                        logger.error(f"Send Message: server error {resp.status_code}")
+                        logger.error(f"Server error {resp.status_code}: {resp.text[:200]}")
                 except Exception as e:
                     ctypes.windll.user32.MessageBoxW(
                         0, f"Send failed: {str(e)[:200]}",
                         "IT Monitor", 0x10 | 0x00010000
                     )
-                    logger.error(f"Send Message: request error: {e}")
+                    logger.error(f"Request error: {e}", exc_info=True)
 
             except Exception as e:
-                import logging
-                logging.getLogger("ITMonitorAgent").error(f"Send Message error: {e}")
+                logger.error(f"FATAL ERROR in Send Message: {e}", exc_info=True)
+                try:
+                    ctypes.windll.user32.MessageBoxW(
+                        0, f"Error: {str(e)[:200]}",
+                        "IT Monitor - Error", 0x10 | 0x00010000
+                    )
+                except:
+                    pass
 
         threading.Thread(target=_send, daemon=True).start()
 
