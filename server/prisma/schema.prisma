@@ -21,10 +21,11 @@ model Computer {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  reports     Report[]
-  alerts      Alert[]
-  messages    Message[]
-  commands    Command[]
+  reports        Report[]
+  alerts         Alert[]
+  messages       Message[]
+  commands       Command[]
+  serverMessages ServerMessage[]
 }
 
 model Report {
@@ -126,4 +127,18 @@ model Alert {
 
   @@index([computerId, createdAt])
   @@index([resolved])
+}
+
+model ServerMessage {
+  id          String   @id @default(cuid())
+  computerId  String
+  computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+
+  message     String
+  delivered   Boolean  @default(false)
+  deliveredAt DateTime?
+
+  createdAt   DateTime @default(now())
+
+  @@index([computerId, delivered])
 }

@@ -87,6 +87,7 @@ from collectors import (
 
 # Remote actions
 from remote_actions import execute_command
+from server_messages import process_server_messages
 
 # Self-update
 from self_update import auto_update, get_current_version
@@ -317,6 +318,12 @@ def agent_loop():
 
             # Poll for remote commands
             poll_commands()
+
+            # Check for server messages
+            try:
+                process_server_messages(CONFIG["server_url"], CONFIG["api_key"])
+            except Exception as e:
+                logger.debug(f"Error processing server messages: {e}")
 
             # Check for self-update periodically
             _loop_count += 1

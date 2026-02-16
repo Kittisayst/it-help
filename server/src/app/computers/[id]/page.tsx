@@ -123,6 +123,7 @@ export default function ComputerDetailPage() {
   const [editingTags, setEditingTags] = useState(false);
   const [labelValue, setLabelValue] = useState("");
   const [tagsValue, setTagsValue] = useState("");
+  const [serverMessage, setServerMessage] = useState("");
 
   const fetchComputer = async () => {
     try {
@@ -204,6 +205,27 @@ export default function ComputerDetailPage() {
       }
     } catch (err) {
       console.error("Failed to save tags:", err);
+    }
+  };
+
+  const sendServerMessage = async () => {
+    if (!computer || !serverMessage.trim()) return;
+    try {
+      const res = await fetch("/api/server-messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          computerId: computer.id,
+          message: serverMessage,
+        }),
+      });
+      if (res.ok) {
+        setServerMessage("");
+        alert("ຂໍ້ຄວາມຖືກສົ່ງແລ້ວ! Agent ຈະໄດ້ຮັບໃນ cycle ຕໍ່ໄປ.");
+      }
+    } catch (err) {
+      console.error("Failed to send server message:", err);
+      alert("ສົ່ງຂໍ້ຄວາມບໍ່ສຳເລັດ");
     }
   };
 
@@ -1021,6 +1043,29 @@ export default function ComputerDetailPage() {
                 className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-sm hover:bg-red-500/30 transition-colors"
               >
                 Kill
+              </button>
+            </div>
+          </div>
+
+          {/* Send Message to Agent */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <Terminal className="w-4 h-4" />
+              ສົ່ງຂໍ້ຄວາມຫາ Agent
+            </h3>
+            <textarea
+              value={serverMessage}
+              onChange={(e) => setServerMessage(e.target.value)}
+              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm h-24 resize-y"
+              placeholder="ພິມຂໍ້ຄວາມທີ່ຕ້ອງການສົ່ງຫາຜູ້ໃຊ້ເຄື່ອງນີ້... (ຮອງຮັບພາສາລາວ)"
+            />
+            <div className="flex justify-end mt-3">
+              <button
+                onClick={sendServerMessage}
+                disabled={!serverMessage.trim()}
+                className="px-4 py-2 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-sm hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+              >
+                ສົ່ງຂໍ້ຄວາມ
               </button>
             </div>
           </div>
