@@ -105,6 +105,19 @@ model Command {
   @@index([status])
 }
 
+model NotifyConfig {
+  id              String   @id @default("default")
+  lineToken       String   @default("")
+  enabled         Boolean  @default(false)
+  cpuThreshold    Float    @default(90)
+  ramThreshold    Float    @default(85)
+  diskThreshold   Float    @default(90)
+  notifyOffline   Boolean  @default(true)
+  notifyEventLog  Boolean  @default(false)
+  cooldownMinutes Int      @default(15)
+  updatedAt       DateTime @updatedAt
+}
+
 model Alert {
   id          String   @id @default(cuid())
   computerId  String

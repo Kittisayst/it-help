@@ -87,6 +87,9 @@ from collectors import (
 # Remote actions
 from remote_actions import execute_command
 
+# Self-update
+from self_update import auto_update, get_current_version
+
 # System tray (optional - gracefully skip if not available)
 tray = None
 try:
@@ -289,6 +292,8 @@ def poll_commands():
 
 # Flag to control the agent loop
 _running = True
+_loop_count = 0
+_UPDATE_CHECK_INTERVAL = 10  # Check for updates every N cycles
 
 
 def stop_agent():
@@ -301,7 +306,7 @@ def stop_agent():
 
 def agent_loop():
     """Main agent loop (runs in background thread when tray is active)."""
-    global _running
+    global _running, _loop_count
 
     while _running:
         try:
@@ -310,6 +315,17 @@ def agent_loop():
 
             # Poll for remote commands
             poll_commands()
+
+            # Check for self-update periodically
+            _loop_count += 1
+            if _loop_count % _UPDATE_CHECK_INTERVAL == 1:
+                try:
+                    should_restart = auto_update(CONFIG["server_url"])
+                    if should_restart:
+                        logger.info("Update applied - agent will restart")
+                        os._exit(0)
+                except Exception as e:
+                    logger.error(f"Auto-update error: {e}")
 
             # Collect data
             logger.info("Collecting system data...")
@@ -337,6 +353,7 @@ def main():
 
     logger.info("=" * 50)
     logger.info("IT Monitor Agent Starting")
+    logger.info(f"Version: {get_current_version()}")
     logger.info(f"Server URL: {CONFIG['server_url']}")
     logger.info(f"Report Interval: {CONFIG['report_interval']}s")
     logger.info(f"Department: {CONFIG.get('department', 'General')}")
