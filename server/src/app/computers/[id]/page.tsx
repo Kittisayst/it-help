@@ -319,9 +319,20 @@ export default function ComputerDetailPage() {
           </div>
         </div>
         <button
-          onClick={() => window.open(`rdp://${computer.ipAddress}`, "_blank")}
+          onClick={() => {
+            const rdpContent = `full address:s:${computer.ipAddress}\nprompt for credentials:i:1\nadministrative session:i:1`;
+            const blob = new Blob([rdpContent], { type: 'application/x-rdp' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${computer.hostname}.rdp`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }}
           className="flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent/90 transition-colors"
-          title="Open Remote Desktop Connection"
+          title="Download RDP file to connect"
         >
           <Monitor className="w-4 h-4" />
           Connect RDP
