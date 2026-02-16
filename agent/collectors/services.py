@@ -39,19 +39,18 @@ ConvertTo-Json -Compress
         if not isinstance(services, list):
             services = [services]
 
-        # Filter to important services only (running or auto-start)
-        important = []
+        # Convert all services to standard format
+        service_list = []
         for svc in services:
-            if svc.get("Status") == "Running" or svc.get("StartType") in ["Automatic", "AutomaticDelayedStart"]:
-                important.append({
-                    "name": svc.get("Name", ""),
-                    "displayName": svc.get("DisplayName", ""),
-                    "status": svc.get("Status", "Unknown"),
-                    "startType": svc.get("StartType", "Unknown"),
-                })
+            service_list.append({
+                "name": svc.get("Name", ""),
+                "displayName": svc.get("DisplayName", ""),
+                "status": str(svc.get("Status", "Unknown")),
+                "startType": str(svc.get("StartType", "Unknown")),
+            })
 
-        logger.info(f"Collected {len(important)} important services")
-        return important
+        logger.info(f"Collected {len(service_list)} services")
+        return service_list
 
     except subprocess.TimeoutExpired:
         logger.error("Services collection timed out")
