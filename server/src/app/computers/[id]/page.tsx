@@ -50,6 +50,7 @@ interface ComputerDetail {
   osVersion: string | null;
   department: string | null;
   label: string | null;
+  tags: string | null;
   status: "online" | "offline" | "warning";
   lastSeenAt: string;
   createdAt: string;
@@ -80,6 +81,7 @@ interface ComputerDetail {
     sharedFolders: Array<{ name: string; path: string; remark: string; is_hidden: boolean }> | null;
     usbDevices: Array<{ name: string; status: string; manufacturer: string }> | null;
     windowsUpdate: { recent_updates: Array<{ id: string; description: string; installed_on: string }>; pending_count: number } | null;
+    services: Array<{ name: string; displayName: string; status: string; startType: string }> | null;
   } | null;
   history: Array<{
     cpuUsage: number;
