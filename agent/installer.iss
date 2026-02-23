@@ -59,7 +59,7 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Filename: "notepad.exe"; Parameters: """{app}\config.json"""; Description: "Configure agent settings (API key, server URL)"; Flags: postinstall shellexec skipifsilent nowait
 
 [UninstallRun]
-Filename: "cmd.exe"; Parameters: "/c schtasks /delete /tn \"ITMonitorAgent\" /f"; Flags: runhidden waituntilterminated
+Filename: "cmd.exe"; Parameters: "/c schtasks /delete /tn ""ITMonitorAgent"" /f"; Flags: runhidden waituntilterminated
 Filename: "cmd.exe"; Parameters: "/c taskkill /f /im agent.exe"; Flags: runhidden waituntilterminated skipifdoesntexist
 
 [Code]
