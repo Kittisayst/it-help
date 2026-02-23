@@ -60,16 +60,33 @@ Filename: "notepad.exe"; Parameters: """{app}\config.json"""; Description: "Conf
 Filename: "{app}\uninstall_service.bat"; Flags: runhidden waituntilterminated
 
 [Code]
-function InitializeSetup(): Boolean;
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  ServicePath: String;
+begin
+  Result := '';
+  // Stop service before upgrade if it exists
+  ServicePath := ExpandConstant('{autopf}\ITMonitorAgent\uninstall_service.bat');
+  if FileExists(ServicePath) then
+  begin
+    Exec('cmd.exe', '/c "' + ServicePath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(2000); // Wait for service to stop
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;
 begin
-  // Stop service if running before upgrade
-  if FileExists(ExpandConstant('{app}\uninstall_service.bat')) then
+  // Stop service before uninstall
+  if CurUninstallStep = usUninstall then
   begin
-    Exec('cmd.exe', '/c "' + ExpandConstant('{app}\uninstall_service.bat') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if FileExists(ExpandConstant('{app}\uninstall_service.bat')) then
+    begin
+      Exec('cmd.exe', '/c "' + ExpandConstant('{app}\uninstall_service.bat') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end;
   end;
-  Result := True;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
