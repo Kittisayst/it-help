@@ -90,7 +90,7 @@ from remote_actions import execute_command
 from server_messages import process_server_messages
 
 # Self-update
-from self_update import auto_update, get_current_version
+from updater import auto_update, get_current_version
 
 # System tray (optional - gracefully skip if not available)
 tray = None

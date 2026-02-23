@@ -30,6 +30,11 @@ jobs:
           pip install pyinstaller
         shell: cmd
 
+      - name: Update version file
+        run: |
+          echo ${{ github.run_number }} > agent/version.txt
+        shell: bash
+
       - name: Build EXE
         run: |
           cd agent
@@ -42,11 +47,18 @@ jobs:
           python generate_icon.py
         shell: cmd
 
-      - name: Prepare distribution
+      - name: Build Installer with Inno Setup
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.4
+        with:
+          path: agent/installer.iss
+          options: /O+
+
+      - name: Prepare distribution (ZIP for manual install)
         run: |
           mkdir dist\it-monitor-agent
           copy agent\dist\agent.exe dist\it-monitor-agent\
           copy agent\config.json dist\it-monitor-agent\
+          copy agent\version.txt dist\it-monitor-agent\
           copy agent\install_service.bat dist\it-monitor-agent\
           copy agent\uninstall_service.bat dist\it-monitor-agent\
           copy agent\icon_green.ico dist\it-monitor-agent\
@@ -55,11 +67,18 @@ jobs:
           copy agent\icon_gray.ico dist\it-monitor-agent\
         shell: cmd
 
-      - name: Upload artifact
+      - name: Upload ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: it-monitor-agent
+          name: it-monitor-agent-zip
           path: dist/it-monitor-agent/
+          retention-days: 30
+
+      - name: Upload Installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: it-monitor-agent-installer
+          path: agent/installer_output/*.exe
           retention-days: 30
 
   release:
@@ -68,11 +87,17 @@ jobs:
     # Release on every push and manual trigger
 
     steps:
-      - name: Download artifact
+      - name: Download ZIP artifact
         uses: actions/download-artifact@v4
         with:
-          name: it-monitor-agent
+          name: it-monitor-agent-zip
           path: it-monitor-agent
+
+      - name: Download Installer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: it-monitor-agent-installer
+          path: installer
 
       - name: Create ZIP
         run: |
@@ -85,12 +110,29 @@ jobs:
           tag_name: agent-v${{ github.run_number }}
           name: IT Monitor Agent v${{ github.run_number }}
           body: |
-            ## IT Monitor Agent
+            ## IT Monitor Agent v${{ github.run_number }}
             
-            ດາວໂຫລດ `it-monitor-agent.zip` ແລ້ວ:
-            1. ແຕກໄຟລ໌
-            2. ແກ້ `config.json` (ຕັ້ງ server_url ແລະ department)
-            3. Run `install_service.bat` ເປັນ Administrator
-          files: it-monitor-agent.zip
+            ### 📦 ວິທີຕິດຕັ້ງ (ແນະນຳ - ງ່າຍທີ່ສຸດ)
+            1. ດາວໂຫລດ `ITMonitorAgent-Setup-v1.0.exe`
+            2. Run installer ເປັນ Administrator
+            3. ປະຕິບັດຕາມຂັ້ນຕອນການຕິດຕັ້ງ
+            4. ແກ້ໄຂ config.json (ຕັ້ງ API key ແລະ server URL)
+            5. Service ຈະເລີ່ມອັດຕະໂນມັດ
+            
+            ### 📁 ວິທີຕິດຕັ້ງແບບ Manual (ສຳລັບຜູ້ຊ່ຽວຊານ)
+            1. ດາວໂຫລດ `it-monitor-agent.zip`
+            2. ແຕກໄຟລ໌ໃສ່ `C:\Program Files\ITMonitorAgent\`
+            3. ແກ້ `config.json` (ຕັ້ງ server_url, api_key, department)
+            4. Run `install_service.bat` ເປັນ Administrator
+            
+            ### 🔄 Auto-Update
+            Agent ຈະກວດສອບ ແລະ ອັບເດດອັດຕະໂນມັດທຸກໆ 1 ຊົ່ວໂມງ
+            
+            ### 🗑️ Uninstall
+            - **Installer version**: ໃຊ້ Windows Settings → Apps → Uninstall
+            - **Manual version**: Run `uninstall_service.bat` ແລ້ວລຶບໂຟລເດີ
+          files: |
+            installer/*.exe
+            it-monitor-agent.zip
           draft: false
           prerelease: false
