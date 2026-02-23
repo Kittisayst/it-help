@@ -1,15 +1,24 @@
 @echo off
+setlocal
+
+set SILENT=0
+if /I "%~1"=="/silent" set SILENT=1
+
+if "%SILENT%"=="1" goto :NO_BANNER
 echo ========================================
 echo IT Monitor Agent - Service Installer
 echo ========================================
 echo.
+:NO_BANNER
 
 REM Check for administrator privileges
 net session >nul 2>&1
 if %errorlevel% neq 0 (
     echo ERROR: Please run this script as Administrator!
-    echo Right-click and select "Run as administrator"
-    pause
+    if "%SILENT%"=="0" (
+        echo Right-click and select "Run as administrator"
+        pause
+    )
     exit /b 1
 )
 
@@ -33,8 +42,10 @@ goto :INSTALL
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo ERROR: agent.exe not found and Python is not installed!
-    echo Either build agent.exe or install Python 3.8+ from https://python.org
-    pause
+    if "%SILENT%"=="0" (
+        echo Either build agent.exe or install Python 3.8+ from https://python.org
+        pause
+    )
     exit /b 1
 )
 echo Mode: Python script
@@ -63,7 +74,7 @@ schtasks /create /tn "%TASK_NAME%" /tr "\"%AGENT_CMD%\"" /sc onlogon /rl highest
 
 if %errorlevel% neq 0 (
     echo ERROR: Failed to create scheduled task.
-    pause
+    if "%SILENT%"=="0" pause
     exit /b 1
 )
 
@@ -83,4 +94,5 @@ echo.
 echo To uninstall, run uninstall_service.bat
 echo.
 
-pause
+if "%SILENT%"=="0" pause
+exit /b 0

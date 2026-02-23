@@ -29,6 +29,9 @@ PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64
 UninstallDisplayIcon={app}\{#MyAppExeName}
 SetupIconFile=Icon_Logo.ico
+CloseApplications=yes
+CloseApplicationsFilter=agent.exe
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -53,39 +56,39 @@ Name: "{group}\Configure Agent"; Filename: "notepad.exe"; Parameters: """{app}\c
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\install_service.bat"; Description: "Install and start Windows Service"; Flags: runhidden waituntilterminated; Tasks: autostart
 Filename: "notepad.exe"; Parameters: """{app}\config.json"""; Description: "Configure agent settings (API key, server URL)"; Flags: postinstall shellexec skipifsilent nowait
 
 [UninstallRun]
-Filename: "{app}\uninstall_service.bat"; Flags: runhidden waituntilterminated
+Filename: "cmd.exe"; Parameters: "/c schtasks /delete /tn \"ITMonitorAgent\" /f"; Flags: runhidden waituntilterminated
+Filename: "cmd.exe"; Parameters: "/c taskkill /f /im agent.exe"; Flags: runhidden waituntilterminated skipifdoesntexist
 
 [Code]
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ResultCode: Integer;
-  ServicePath: String;
+  ExecOk: Boolean;
 begin
   Result := '';
-  // Stop service before upgrade if it exists
-  ServicePath := ExpandConstant('{autopf}\ITMonitorAgent\uninstall_service.bat');
-  if FileExists(ServicePath) then
-  begin
-    Exec('cmd.exe', '/c "' + ServicePath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    Sleep(2000); // Wait for service to stop
-  end;
+  // Stop running agent process and remove old scheduled task before overwrite.
+  ExecOk := Exec('cmd.exe', '/c taskkill /f /im agent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if ExecOk and (ResultCode <> 0) and (ResultCode <> 128) then
+    Log(Format('taskkill returned code %d', [ResultCode]));
+
+  ExecOk := Exec('cmd.exe', '/c schtasks /delete /tn "ITMonitorAgent" /f', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if ExecOk and (ResultCode <> 0) then
+    Log(Format('schtasks delete returned code %d', [ResultCode]));
+
+  Sleep(1000);
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;
 begin
-  // Stop service before uninstall
   if CurUninstallStep = usUninstall then
   begin
-    if FileExists(ExpandConstant('{app}\uninstall_service.bat')) then
-    begin
-      Exec('cmd.exe', '/c "' + ExpandConstant('{app}\uninstall_service.bat') + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    end;
+    Exec('cmd.exe', '/c taskkill /f /im agent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Exec('cmd.exe', '/c schtasks /delete /tn "ITMonitorAgent" /f', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   end;
 end;
 
@@ -93,6 +96,8 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   ConfigFile: String;
   ConfigContent: String;
+  ResultCode: Integer;
+  ExecOk: Boolean;
 begin
   if CurStep = ssPostInstall then
   begin
@@ -108,6 +113,23 @@ begin
         '  "update_check_interval": 3600' + #13#10 +
         '}';
       SaveStringToFile(ConfigFile, ConfigContent, False);
+    end;
+
+    // Install/start startup task. Must be non-interactive to avoid setup hang.
+    if WizardIsTaskSelected('autostart') then
+    begin
+      ExecOk := Exec(ExpandConstant('{app}\install_service.bat'), '/silent', ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      if (not ExecOk) or (ResultCode <> 0) then
+      begin
+        MsgBox(
+          'Failed to install/start the ITMonitorAgent startup task.' + #13#10 +
+          'Exit code: ' + IntToStr(ResultCode) + #13#10 +
+          'Please run as Administrator and try again.' + #13#10 +
+          'You can also run install_service.bat manually from the install folder.',
+          mbError,
+          MB_OK
+        );
+      end;
     end;
   end;
 end;
