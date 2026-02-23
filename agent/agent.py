@@ -99,9 +99,43 @@ try:
 except ImportError:
     TRAY_AVAILABLE = False
 
-# Setup logging
-log_dir = os.path.join(BASE_DIR, "logs")
-os.makedirs(log_dir, exist_ok=True)
+# Setup logging - use AppData for logs when installed in Program Files
+def get_log_directory():
+    """Get appropriate log directory based on installation location."""
+    # Check if running in Program Files (need admin rights)
+    program_files = [
+        os.environ.get('ProgramFiles', 'C:\\Program Files'),
+        os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)')
+    ]
+    
+    is_in_program_files = False
+    for pf in program_files:
+        if BASE_DIR.startswith(pf):
+            is_in_program_files = True
+            break
+    
+    if is_in_program_files:
+        # Use AppData for logs when installed in Program Files
+        app_data = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+        log_dir = os.path.join(app_data, 'ITMonitorAgent', 'logs')
+    else:
+        # Use local logs folder for portable installations
+        log_dir = os.path.join(BASE_DIR, "logs")
+    
+    return log_dir
+
+log_dir = get_log_directory()
+
+# Try to create log directory, fallback to temp if failed
+try:
+    os.makedirs(log_dir, exist_ok=True)
+except PermissionError:
+    # Fallback to temp directory
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    log_dir = os.path.join(temp_dir, 'ITMonitorAgent', 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    print(f"Using temp logs directory: {log_dir}")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -112,6 +146,7 @@ logging.basicConfig(
     ],
 )
 logger = logging.getLogger("ITMonitorAgent")
+logger.info(f"Agent started, logs directory: {log_dir}")
 
 
 def collect_all_data():
