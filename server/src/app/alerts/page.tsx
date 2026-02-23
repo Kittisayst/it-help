@@ -75,6 +75,26 @@ export default function AlertsPage() {
     }
   };
 
+  const clearAlerts = async () => {
+    const scope = filter === "all" ? "all" : filter === "active" ? "active" : "resolved";
+    const confirmText =
+      scope === "all"
+        ? "Clear all alerts?"
+        : scope === "active"
+        ? "Clear all active alerts?"
+        : "Clear all resolved alerts?";
+
+    if (!confirm(confirmText)) return;
+
+    try {
+      await fetch(`/api/alerts?scope=${scope}`, { method: "DELETE" });
+      setSelectedAlerts(new Set());
+      fetchAlerts();
+    } catch (err) {
+      console.error("Failed to clear alerts:", err);
+    }
+  };
+
   const toggleAlert = (id: string) => {
     const newSelected = new Set(selectedAlerts);
     if (newSelected.has(id)) {
@@ -109,6 +129,12 @@ export default function AlertsPage() {
           <p className="text-muted text-sm mt-1">Monitor system alerts and warnings</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={clearAlerts}
+            className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors text-sm"
+          >
+            Clear
+          </button>
           <button
             onClick={() => {
               const param = filter === "all" ? "" : filter === "active" ? "?resolved=false" : "?resolved=true";

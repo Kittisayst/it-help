@@ -142,3 +142,16 @@ model ServerMessage {
 
   @@index([computerId, delivered])
 }
+
+model Program {
+  id          String   @id @default(cuid())
+  imageUrl    String?
+  name        String
+  description String
+  programPath String
+  downloadUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}

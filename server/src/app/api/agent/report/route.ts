@@ -76,60 +76,99 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Check thresholds and create alerts
+    // Check thresholds and create alerts (deduplicated by computer + type)
     const alerts: string[] = [];
 
-    if (metrics.cpu_usage > 90) {
-      alerts.push("CPU");
-      await prisma.alert.create({
-        data: {
-          computerId: computer.id,
-          type: "cpu_high",
-          severity: "critical",
-          message: `CPU usage is ${metrics.cpu_usage.toFixed(1)}% on ${hostname}`,
-        },
-      });
-    }
+    const upsertAlert = async (
+      type: string,
+      triggered: boolean,
+      severity: "warning" | "critical",
+      message: string
+    ) => {
+      if (triggered) {
+        alerts.push(type.toUpperCase());
+        const existing = await prisma.alert.findFirst({
+          where: {
+            computerId: computer.id,
+            type,
+            resolved: false,
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
-    if (metrics.ram_usage > 85) {
-      alerts.push("RAM");
-      await prisma.alert.create({
-        data: {
-          computerId: computer.id,
-          type: "ram_high",
-          severity: metrics.ram_usage > 95 ? "critical" : "warning",
-          message: `RAM usage is ${metrics.ram_usage.toFixed(1)}% on ${hostname}`,
-        },
-      });
-    }
+        if (existing) {
+          await prisma.alert.update({
+            where: { id: existing.id },
+            data: {
+              message,
+              severity,
+              createdAt: new Date(),
+            },
+          });
+        } else {
+          await prisma.alert.create({
+            data: {
+              computerId: computer.id,
+              type,
+              severity,
+              message,
+            },
+          });
+        }
+      } else {
+        // Automatically resolve old alert of same type when issue is gone
+        await prisma.alert.updateMany({
+          where: {
+            computerId: computer.id,
+            type,
+            resolved: false,
+          },
+          data: {
+            resolved: true,
+            resolvedAt: new Date(),
+          },
+        });
+      }
+    };
 
-    if (metrics.disk_usage > 90) {
-      alerts.push("DISK");
-      await prisma.alert.create({
-        data: {
-          computerId: computer.id,
-          type: "disk_high",
-          severity: metrics.disk_usage > 95 ? "critical" : "warning",
-          message: `Disk usage is ${metrics.disk_usage.toFixed(1)}% on ${hostname}`,
-        },
-      });
-    }
+    await upsertAlert(
+      "cpu_high",
+      metrics.cpu_usage > 90,
+      "critical",
+      `CPU usage is ${metrics.cpu_usage.toFixed(1)}% on ${hostname}`
+    );
+
+    await upsertAlert(
+      "ram_high",
+      metrics.ram_usage > 85,
+      metrics.ram_usage > 95 ? "critical" : "warning",
+      `RAM usage is ${metrics.ram_usage.toFixed(1)}% on ${hostname}`
+    );
+
+    await upsertAlert(
+      "disk_high",
+      metrics.disk_usage > 90,
+      metrics.disk_usage > 95 ? "critical" : "warning",
+      `Disk usage is ${metrics.disk_usage.toFixed(1)}% on ${hostname}`
+    );
 
     if (metrics.event_logs && Array.isArray(metrics.event_logs)) {
       const errors = metrics.event_logs.filter(
         (log: { level: string }) => log.level === "Error" || log.level === "Critical"
       );
-      if (errors.length > 0) {
-        alerts.push("EVENT_LOG");
-        await prisma.alert.create({
-          data: {
-            computerId: computer.id,
-            type: "event_log_error",
-            severity: "warning",
-            message: `${errors.length} error(s) found in Windows Event Log on ${hostname}`,
-          },
-        });
-      }
+      await upsertAlert(
+        "event_log_error",
+        errors.length > 0,
+        "warning",
+        `${errors.length} error(s) found in Windows Event Log on ${hostname}`
+      );
+    } else {
+      await upsertAlert(
+        "event_log_error",
+        false,
+        "warning",
+        `0 error(s) found in Windows Event Log on ${hostname}`
+      );
     }
 
     // Clean up old reports (keep last 24 hours)

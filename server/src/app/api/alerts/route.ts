@@ -28,3 +28,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get("scope") || "all";
+
+    const where: Record<string, unknown> = {};
+    if (scope === "active") where.resolved = false;
+    if (scope === "resolved") where.resolved = true;
+
+    const result = await prisma.alert.deleteMany({ where });
+    return NextResponse.json({ success: true, deletedCount: result.count });
+  } catch (error) {
+    console.error("Clear alerts error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

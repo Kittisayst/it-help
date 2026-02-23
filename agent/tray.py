@@ -7,6 +7,7 @@ import sys
 import os
 import threading
 import socket
+import webbrowser
 
 try:
     from PIL import Image, ImageDraw, ImageFont
@@ -366,6 +367,14 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
         except Exception:
             pass
 
+    def _open_programs_page(self, icon, item):
+        """Open programs page on server."""
+        try:
+            server_url = self.config.get("server_url", "http://localhost:3000").rstrip("/")
+            webbrowser.open(f"{server_url}/programs")
+        except Exception:
+            pass
+
     def _is_autostart_enabled(self):
         """Check if agent is set to auto-start."""
         try:
@@ -515,6 +524,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
             Menu.SEPARATOR,
             MenuItem("Open Logs", self._open_logs),
             MenuItem("Open Config", self._open_config),
+            MenuItem("Programs List", self._open_programs_page),
             Menu.SEPARATOR,
             MenuItem("Quit Agent", self._quit),
         )
