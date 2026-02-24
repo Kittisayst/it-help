@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import fs from "fs/promises";
 
 export async function PATCH(
   request: NextRequest,
@@ -40,7 +41,13 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const existing = await prisma.program.findUnique({ where: { id } });
     await prisma.program.delete({ where: { id } });
+
+    if (existing?.programPath) {
+      await fs.unlink(existing.programPath).catch(() => undefined);
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete program error:", error);

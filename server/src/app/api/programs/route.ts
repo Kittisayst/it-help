@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import fs from "fs/promises";
+import path from "path";
+
+export const runtime = "nodejs";
+
+function sanitizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
 
 export async function GET() {
   try {
@@ -15,19 +23,35 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const name = String(body.name || "").trim();
-    const description = String(body.description || "").trim();
-    const programPath = String(body.programPath || "").trim();
-    const imageUrl = body.imageUrl ? String(body.imageUrl).trim() : null;
-    const downloadUrl = body.downloadUrl ? String(body.downloadUrl).trim() : null;
+    const formData = await request.formData();
+    const name = String(formData.get("name") || "").trim();
+    const description = String(formData.get("description") || "").trim();
+    const imageUrlRaw = String(formData.get("imageUrl") || "").trim();
+    const imageUrl = imageUrlRaw ? imageUrlRaw : null;
+    const file = formData.get("programFile");
 
-    if (!name || !description || !programPath) {
+    if (!name || !description || !(file instanceof File)) {
       return NextResponse.json(
-        { error: "name, description and programPath are required" },
+        { error: "name, description and program file are required" },
         { status: 400 }
       );
     }
+
+    if (!file.name) {
+      return NextResponse.json({ error: "Invalid program file" }, { status: 400 });
+    }
+
+    const uploadsDir = path.join(process.cwd(), "public", "downloads", "programs");
+    await fs.mkdir(uploadsDir, { recursive: true });
+
+    const safeName = sanitizeFileName(file.name);
+    const storedName = `${Date.now()}-${safeName}`;
+    const absoluteFilePath = path.join(uploadsDir, storedName);
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    await fs.writeFile(absoluteFilePath, fileBuffer);
+
+    const programPath = absoluteFilePath;
+    const downloadUrl = `/downloads/programs/${storedName}`;
 
     const program = await prisma.program.create({
       data: {

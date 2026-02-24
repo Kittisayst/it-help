@@ -371,7 +371,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
         """Open programs page on server."""
         try:
             server_url = self.config.get("server_url", "http://localhost:3000").rstrip("/")
-            webbrowser.open(f"{server_url}/programs")
+            webbrowser.open(f"{server_url}/agent-programs")
         except Exception:
             pass
 
