@@ -9,12 +9,34 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function toPublicDownloadUrl(downloadUrl: string | null, programPath: string) {
+  if (downloadUrl) {
+    if (downloadUrl.startsWith("http://") || downloadUrl.startsWith("https://") || downloadUrl.startsWith("/")) {
+      return downloadUrl;
+    }
+    return `/${downloadUrl}`;
+  }
+
+  const filename = path.basename(programPath || "");
+  if (filename) {
+    return `/downloads/programs/${filename}`;
+  }
+
+  return null;
+}
+
 export async function GET() {
   try {
     const programs = await prisma.program.findMany({
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(programs);
+
+    const normalized = programs.map((p) => ({
+      ...p,
+      downloadUrl: toPublicDownloadUrl(p.downloadUrl, p.programPath),
+    }));
+
+    return NextResponse.json(normalized);
   } catch (error) {
     console.error("List programs error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

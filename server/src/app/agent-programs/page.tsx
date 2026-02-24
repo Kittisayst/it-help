@@ -12,6 +12,12 @@ interface ProgramItem {
   downloadUrl: string | null;
 }
 
+function toHref(url: string | null) {
+  if (!url) return "#";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) return url;
+  return `/${url}`;
+}
+
 export default function AgentProgramsPage() {
   const [programs, setPrograms] = useState<ProgramItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +75,7 @@ export default function AgentProgramsPage() {
               <p className="text-sm text-muted mt-1 min-h-10">{program.description}</p>
 
               <a
-                href={program.downloadUrl || "#"}
+                href={toHref(program.downloadUrl)}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-3 inline-flex items-center gap-2 px-3 py-2 text-sm bg-accent text-white rounded-lg hover:bg-accent/90"

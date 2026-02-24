@@ -13,6 +13,12 @@ interface ProgramItem {
   createdAt: string;
 }
 
+function toHref(url: string | null) {
+  if (!url) return "#";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("/")) return url;
+  return `/${url}`;
+}
+
 export default function ProgramsPage() {
   const [programs, setPrograms] = useState<ProgramItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,7 +188,7 @@ export default function ProgramsPage() {
 
                 <div className="flex items-center gap-2 mt-3">
                   <a
-                    href={program.downloadUrl || program.programPath}
+                    href={toHref(program.downloadUrl) || program.programPath}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-accent text-white rounded hover:bg-accent/90"
