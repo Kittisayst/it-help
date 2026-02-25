@@ -487,6 +487,14 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
         except Exception:
             pass
 
+    def _restart(self, icon, item):
+        """Restart the agent."""
+        if self.icon:
+            self.icon.stop()
+        
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+
     def _quit(self, icon, item):
         """Quit the agent."""
         if self.icon:
@@ -508,6 +516,7 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
             MenuItem("Open Config", self._open_config),
             MenuItem("Programs List", self._open_programs_page),
             Menu.SEPARATOR,
+            MenuItem("Restart Agent", self._restart),
             MenuItem("Quit Agent", self._quit),
         )
 

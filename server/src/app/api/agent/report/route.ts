@@ -2,20 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { unauthorizedResponse } from "@/lib/agent-auth";
 import { emitToDashboard, emitToComputer } from "@/lib/socket";
+import { AgentReportSchema } from "@/lib/schemas";
+import { isRateLimited, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  if (isRateLimited(ip)) {
+    return rateLimitResponse();
+  }
   try {
     const apiKey = request.headers.get("x-api-key");
     if (!apiKey) {
       return unauthorizedResponse("Missing API key");
     }
 
-    const data = await request.json();
-    const { hostname, ip_address, mac_address, os_version, department, ...metrics } = data;
+    const json = await request.json();
+    const result = AgentReportSchema.safeParse(json);
 
-    if (!hostname) {
-      return NextResponse.json({ error: "Missing hostname" }, { status: 400 });
+    if (!result.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", details: result.error.format() },
+        { status: 400 }
+      );
     }
+
+    const data = result.data;
+    const { hostname, ip_address, mac_address, os_version, department } = data;
 
     // Find or create computer
     let computer = await prisma.computer.findUnique({ where: { hostname } });
@@ -53,33 +65,33 @@ export async function POST(request: NextRequest) {
     const report = await prisma.report.create({
       data: {
         computerId: computer.id,
-        cpuUsage: metrics.cpu_usage || 0,
-        cpuCores: metrics.cpu_cores,
-        cpuSpeed: metrics.cpu_speed,
-        cpuTemp: metrics.cpu_temp,
-        ramTotal: metrics.ram_total || 0,
-        ramUsed: metrics.ram_used || 0,
-        ramUsage: metrics.ram_usage || 0,
-        diskTotal: metrics.disk_total || 0,
-        diskUsed: metrics.disk_used || 0,
-        diskUsage: metrics.disk_usage || 0,
-        diskDetails: metrics.disk_details ? JSON.stringify(metrics.disk_details) : null,
-        networkUp: metrics.network_up !== false,
-        networkInfo: metrics.network_info ? JSON.stringify(metrics.network_info) : null,
-        osInfo: metrics.os_info ? JSON.stringify(metrics.os_info) : null,
-        uptime: metrics.uptime,
-        topProcesses: metrics.top_processes ? JSON.stringify(metrics.top_processes) : null,
-        eventLogs: metrics.event_logs ? JSON.stringify(metrics.event_logs) : null,
-        software: metrics.software ? JSON.stringify(metrics.software) : null,
-        antivirusStatus: metrics.antivirus_status,
-        printers: metrics.printers ? JSON.stringify(metrics.printers) : null,
-        windowsLicense: metrics.windows_license ? JSON.stringify(metrics.windows_license) : null,
-        officeLicense: metrics.office_license ? JSON.stringify(metrics.office_license) : null,
-        startupPrograms: metrics.startup_programs ? JSON.stringify(metrics.startup_programs) : null,
-        sharedFolders: metrics.shared_folders ? JSON.stringify(metrics.shared_folders) : null,
-        usbDevices: metrics.usb_devices ? JSON.stringify(metrics.usb_devices) : null,
-        windowsUpdate: metrics.windows_update ? JSON.stringify(metrics.windows_update) : null,
-        services: metrics.services ? JSON.stringify(metrics.services) : null,
+        cpuUsage: data.cpu_usage || 0,
+        cpuCores: data.cpu_cores,
+        cpuSpeed: data.cpu_speed,
+        cpuTemp: data.cpu_temp,
+        ramTotal: data.ram_total || 0,
+        ramUsed: data.ram_used || 0,
+        ramUsage: data.ram_usage || 0,
+        diskTotal: data.disk_total || 0,
+        diskUsed: data.disk_used || 0,
+        diskUsage: data.disk_usage || 0,
+        diskDetails: data.disk_details ? JSON.stringify(data.disk_details) : null,
+        networkUp: data.network_up !== false,
+        networkInfo: data.network_info ? JSON.stringify(data.network_info) : null,
+        osInfo: data.os_info ? JSON.stringify(data.os_info) : null,
+        uptime: data.uptime,
+        topProcesses: data.top_processes ? JSON.stringify(data.top_processes) : null,
+        eventLogs: data.event_logs ? JSON.stringify(data.event_logs) : null,
+        software: data.software ? JSON.stringify(data.software) : null,
+        antivirusStatus: data.antivirus_status,
+        printers: data.printers ? JSON.stringify(data.printers) : null,
+        windowsLicense: data.windows_license ? JSON.stringify(data.windows_license) : null,
+        officeLicense: data.office_license ? JSON.stringify(data.office_license) : null,
+        startupPrograms: data.startup_programs ? JSON.stringify(data.startup_programs) : null,
+        sharedFolders: data.shared_folders ? JSON.stringify(data.shared_folders) : null,
+        usbDevices: data.usb_devices ? JSON.stringify(data.usb_devices) : null,
+        windowsUpdate: data.windows_update ? JSON.stringify(data.windows_update) : null,
+        services: data.services ? JSON.stringify(data.services) : null,
       },
     });
 
@@ -150,27 +162,27 @@ export async function POST(request: NextRequest) {
 
     await upsertAlert(
       "cpu_high",
-      metrics.cpu_usage > cpuThreshold,
+      data.cpu_usage > cpuThreshold,
       "critical",
-      `CPU usage is ${metrics.cpu_usage.toFixed(1)}% on ${hostname}`
+      `CPU usage is ${data.cpu_usage.toFixed(1)}% on ${hostname}`
     );
 
     await upsertAlert(
       "ram_high",
-      metrics.ram_usage > ramThreshold,
-      metrics.ram_usage > 95 ? "critical" : "warning",
-      `RAM usage is ${metrics.ram_usage.toFixed(1)}% on ${hostname}`
+      data.ram_usage > ramThreshold,
+      data.ram_usage > 95 ? "critical" : "warning",
+      `RAM usage is ${data.ram_usage.toFixed(1)}% on ${hostname}`
     );
 
     await upsertAlert(
       "disk_high",
-      metrics.disk_usage > diskThreshold,
-      metrics.disk_usage > 95 ? "critical" : "warning",
-      `Disk usage is ${metrics.disk_usage.toFixed(1)}% on ${hostname}`
+      data.disk_usage > diskThreshold,
+      data.disk_usage > 95 ? "critical" : "warning",
+      `Disk usage is ${data.disk_usage.toFixed(1)}% on ${hostname}`
     );
 
-    if (checkEventLogErrors && metrics.event_logs && Array.isArray(metrics.event_logs)) {
-      const errors = metrics.event_logs.filter(
+    if (checkEventLogErrors && data.event_logs && Array.isArray(data.event_logs)) {
+      const errors = data.event_logs.filter(
         (log: { level: string }) => log.level === "Error" || log.level === "Critical"
       );
       await upsertAlert(
@@ -202,9 +214,9 @@ export async function POST(request: NextRequest) {
       id: computer.id,
       hostname: computer.hostname,
       status: "online",
-      cpuUsage: metrics.cpu_usage || 0,
-      ramUsage: metrics.ram_usage || 0,
-      diskUsage: metrics.disk_usage || 0,
+      cpuUsage: data.cpu_usage || 0,
+      ramUsage: data.ram_usage || 0,
+      diskUsage: data.disk_usage || 0,
       lastSeenAt: new Date().toISOString(),
     });
 

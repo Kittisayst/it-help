@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateAgentByHostname, unauthorizedResponse } from "@/lib/agent-auth";
+import { AgentMessageSchema } from "@/lib/schemas";
+import { isRateLimited, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  if (isRateLimited(ip)) {
+    return rateLimitResponse();
+  }
   try {
-    const data = await request.json();
-    const { hostname, department, message, ip_address } = data;
+    const json = await request.json();
+    const result = AgentMessageSchema.safeParse(json);
 
-    if (!hostname || !message) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Missing hostname or message" },
+        { error: "Invalid payload", details: result.error.format() },
         { status: 400 }
       );
     }
+
+    const { hostname, department, message, ip_address } = result.data;
 
     // Validate agent key against hostname
     const computer = await validateAgentByHostname(request, hostname);

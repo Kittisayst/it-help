@@ -14,7 +14,9 @@ model User {
   name      String?  @db.VarChar(100)
   role      String   @default("admin") @db.VarChar(20)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  auditLogs AuditLog[]
+
+  @@map("user")
 }
 
 model Computer {
@@ -38,6 +40,9 @@ model Computer {
   commands       Command[]
   serverMessages ServerMessage[]
   thresholds     AlertThreshold[]
+  auditLogs      AuditLog[]
+
+  @@map("computer")
 }
 
 model Report {
@@ -82,6 +87,7 @@ model Report {
   createdAt   DateTime @default(now())
 
   @@index([computerId, createdAt])
+  @@map("report")
 }
 
 model Message {
@@ -104,6 +110,7 @@ model Message {
   @@index([read])
   @@index([resolved])
   @@index([createdAt])
+  @@map("message")
 }
 
 model Command {
@@ -122,6 +129,7 @@ model Command {
 
   @@index([computerId, status])
   @@index([status])
+  @@map("command")
 }
 
 model Alert {
@@ -139,6 +147,7 @@ model Alert {
 
   @@index([computerId, createdAt])
   @@index([resolved])
+  @@map("alert")
 }
 
 model ServerMessage {
@@ -153,6 +162,7 @@ model ServerMessage {
   createdAt   DateTime @default(now())
 
   @@index([computerId, delivered])
+  @@map("servermessage")
 }
 
 model Program {
@@ -166,6 +176,7 @@ model Program {
   updatedAt   DateTime @updatedAt
 
   @@index([name])
+  @@map("program")
 }
 
 model AlertThreshold {
@@ -182,20 +193,24 @@ model AlertThreshold {
   updatedAt DateTime @updatedAt
 
   @@unique([computerId])
+  @@map("alertthreshold")
 }
 
 model AuditLog {
-  id          String   @id @default(cuid()) @db.VarChar(30)
-  userId      String?  @db.VarChar(30)
-  action      String   @db.VarChar(100)
-  details     String?  @db.Text
-  ipAddress   String?  @db.VarChar(45)
-  userAgent   String?  @db.Text
-  computerId  String?  @db.VarChar(30)
+  id          String    @id @default(cuid()) @db.VarChar(30)
+  userId      String?   @db.VarChar(30)
+  action      String    @db.VarChar(100)
+  details     String?   @db.Text
+  ipAddress   String?   @db.VarChar(45)
+  userAgent   String?   @db.Text
+  computerId  String?   @db.VarChar(30)
+  user        User?     @relation(fields: [userId], references: [id])
+  computer    Computer? @relation(fields: [computerId], references: [id])
   
-  createdAt DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@index([createdAt])
   @@index([userId])
   @@index([action])
+  @@map("auditlog")
 }

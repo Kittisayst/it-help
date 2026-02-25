@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // GET /api/computers/[id]/thresholds - Get thresholds for a computer
 export async function GET(
@@ -63,6 +65,18 @@ export async function PUT(
         eventLogErrors: eventLogErrors ?? true,
       },
     });
+
+    const session = await getServerSession(authOptions);
+    if (session) {
+      await prisma.auditLog.create({
+        data: {
+          userId: (session.user as any)?.id,
+          action: "UPDATE_THRESHOLDS",
+          details: `Updated thresholds: CPU(${threshold.cpuThreshold}%), RAM(${threshold.ramThreshold}%), Disk(${threshold.diskThreshold}%)`,
+          computerId: id,
+        },
+      });
+    }
 
     return NextResponse.json({
       cpuThreshold: threshold.cpuThreshold,

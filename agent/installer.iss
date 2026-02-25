@@ -56,6 +56,7 @@ Name: "{group}\Configure Agent"; Filename: "notepad.exe"; Parameters: """{userap
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 Filename: "notepad.exe"; Parameters: """{userappdata}\ITMonitorAgent\config.json"""; Description: "Configure agent settings (API key, server URL)"; Flags: postinstall shellexec skipifsilent nowait
 
 [UninstallRun]
