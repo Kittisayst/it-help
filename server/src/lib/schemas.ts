@@ -2,15 +2,15 @@ import { z } from "zod";
 
 export const AgentReportSchema = z.object({
     hostname: z.string(),
-    ip_address: z.string().optional(),
-    mac_address: z.string().optional(),
-    os_version: z.string().optional(),
-    department: z.string().optional(),
+    ip_address: z.string().nullable().optional(),
+    mac_address: z.string().nullable().optional(),
+    os_version: z.string().nullable().optional(),
+    department: z.string().nullable().optional(),
 
     cpu_usage: z.number(),
-    cpu_cores: z.number().optional(),
-    cpu_speed: z.string().optional(),
-    cpu_temp: z.number().optional(),
+    cpu_cores: z.number().nullable().optional(),
+    cpu_speed: z.string().nullable().optional(),
+    cpu_temp: z.number().nullable().optional(),
 
     ram_total: z.number(),
     ram_used: z.number(),
@@ -19,27 +19,27 @@ export const AgentReportSchema = z.object({
     disk_total: z.number(),
     disk_used: z.number(),
     disk_usage: z.number(),
-    disk_details: z.any().optional(),
+    disk_details: z.any().nullable().optional(),
 
     network_up: z.boolean().default(true),
-    network_info: z.any().optional(),
+    network_info: z.any().nullable().optional(),
 
-    os_info: z.any().optional(),
-    uptime: z.number().optional(),
+    os_info: z.any().nullable().optional(),
+    uptime: z.number().nullable().optional(),
 
-    top_processes: z.any().optional(),
-    event_logs: z.any().optional(),
-    software: z.any().optional(),
-    antivirus_status: z.string().optional(),
+    top_processes: z.any().nullable().optional(),
+    event_logs: z.any().nullable().optional(),
+    software: z.any().nullable().optional(),
+    antivirus_status: z.string().nullable().optional(),
 
-    printers: z.any().optional(),
-    windows_license: z.any().optional(),
-    office_license: z.any().optional(),
-    startup_programs: z.any().optional(),
-    shared_folders: z.any().optional(),
-    usb_devices: z.any().optional(),
-    windows_update: z.any().optional(),
-    services: z.any().optional(),
+    printers: z.any().nullable().optional(),
+    windows_license: z.any().nullable().optional(),
+    office_license: z.any().nullable().optional(),
+    startup_programs: z.any().nullable().optional(),
+    shared_folders: z.any().nullable().optional(),
+    usb_devices: z.any().nullable().optional(),
+    windows_update: z.any().nullable().optional(),
+    services: z.any().nullable().optional(),
 });
 
 export const CommandResultSchema = z.object({
