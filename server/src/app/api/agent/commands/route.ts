@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { validateAgentByHostname, unauthorizedResponse } from "@/lib/agent-auth";
 
 // GET /api/agent/commands?hostname=XXX - Agent polls for pending commands
 export async function GET(request: NextRequest) {
   try {
-    const apiKey = request.headers.get("x-api-key");
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const hostname = searchParams.get("hostname");
 
@@ -19,13 +15,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Find computer by hostname
-    const computer = await prisma.computer.findUnique({
-      where: { hostname },
-    });
-
+    const computer = await validateAgentByHostname(request, hostname);
     if (!computer) {
-      return NextResponse.json([]);
+      return unauthorizedResponse();
     }
 
     // Get pending commands

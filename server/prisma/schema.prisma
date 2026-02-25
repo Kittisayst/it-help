@@ -3,20 +3,31 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  username  String   @unique @db.VarChar(100)
+  password  String   @db.VarChar(255)
+  name      String?  @db.VarChar(100)
+  role      String   @default("admin") @db.VarChar(20)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Computer {
-  id          String   @id @default(cuid())
-  hostname    String   @unique
-  ipAddress   String
-  macAddress  String?
-  osVersion   String?
-  department  String   @default("General")
-  label       String?
-  tags        String   @default("")
-  apiKey      String
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  hostname    String   @unique @db.VarChar(191)
+  ipAddress   String   @db.VarChar(45)
+  macAddress  String?  @db.VarChar(50)
+  osVersion   String?  @db.VarChar(255)
+  department  String   @default("General") @db.VarChar(100)
+  label       String?  @db.VarChar(255)
+  tags        String   @default("") @db.VarChar(500)
+  group       String   @default("General") @db.VarChar(100)
+  apiKey      String   @db.VarChar(255)
   lastSeenAt  DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -26,16 +37,17 @@ model Computer {
   messages       Message[]
   commands       Command[]
   serverMessages ServerMessage[]
+  thresholds     AlertThreshold[]
 }
 
 model Report {
-  id          String   @id @default(cuid())
-  computerId  String
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  computerId  String   @db.VarChar(30)
   computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
 
   cpuUsage    Float
   cpuCores    Int?
-  cpuSpeed    String?
+  cpuSpeed    String?  @db.VarChar(100)
   cpuTemp     Float?
 
   ramTotal    Float
@@ -45,27 +57,27 @@ model Report {
   diskTotal   Float
   diskUsed    Float
   diskUsage   Float
-  diskDetails String?
+  diskDetails String?  @db.LongText
 
   networkUp   Boolean  @default(true)
-  networkInfo String?
+  networkInfo String?  @db.LongText
 
-  osInfo      String?
+  osInfo      String?  @db.Text
   uptime      Float?
 
-  topProcesses String?
-  eventLogs    String?
-  software     String?
-  antivirusStatus String?
+  topProcesses String? @db.LongText
+  eventLogs    String? @db.LongText
+  software     String? @db.LongText
+  antivirusStatus String? @db.Text
 
-  printers        String?
-  windowsLicense  String?
-  officeLicense   String?
-  startupPrograms String?
-  sharedFolders   String?
-  usbDevices      String?
-  windowsUpdate   String?
-  services        String?
+  printers        String? @db.LongText
+  windowsLicense  String? @db.Text
+  officeLicense   String? @db.Text
+  startupPrograms String? @db.LongText
+  sharedFolders   String? @db.LongText
+  usbDevices      String? @db.LongText
+  windowsUpdate   String? @db.LongText
+  services        String? @db.LongText
 
   createdAt   DateTime @default(now())
 
@@ -73,19 +85,19 @@ model Report {
 }
 
 model Message {
-  id          String   @id @default(cuid())
-  computerId  String?
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  computerId  String?  @db.VarChar(30)
   computer    Computer? @relation(fields: [computerId], references: [id], onDelete: Cascade)
 
-  hostname    String
-  department  String?
-  ipAddress   String?
-  message     String
+  hostname    String   @db.VarChar(255)
+  department  String?  @db.VarChar(100)
+  ipAddress   String?  @db.VarChar(45)
+  message     String   @db.Text
   read        Boolean  @default(false)
   readAt      DateTime?
   resolved    Boolean  @default(false)
   resolvedAt  DateTime?
-  reply       String?
+  reply       String?  @db.Text
 
   createdAt   DateTime @default(now())
 
@@ -95,15 +107,15 @@ model Message {
 }
 
 model Command {
-  id          String   @id @default(cuid())
-  computerId  String
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  computerId  String   @db.VarChar(30)
   computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
 
-  action      String
-  params      String?
-  status      String   @default("pending")
-  result      String?
-  createdBy   String   @default("admin")
+  action      String   @db.VarChar(100)
+  params      String?  @db.Text
+  status      String   @default("pending") @db.VarChar(20)
+  result      String?  @db.LongText
+  createdBy   String   @default("admin") @db.VarChar(100)
 
   createdAt   DateTime @default(now())
   executedAt  DateTime?
@@ -113,13 +125,13 @@ model Command {
 }
 
 model Alert {
-  id          String   @id @default(cuid())
-  computerId  String
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  computerId  String   @db.VarChar(30)
   computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
 
-  type        String
-  severity    String   @default("warning")
-  message     String
+  type        String   @db.VarChar(50)
+  severity    String   @default("warning") @db.VarChar(20)
+  message     String   @db.Text
   resolved    Boolean  @default(false)
   resolvedAt  DateTime?
 
@@ -130,11 +142,11 @@ model Alert {
 }
 
 model ServerMessage {
-  id          String   @id @default(cuid())
-  computerId  String
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  computerId  String   @db.VarChar(30)
   computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
 
-  message     String
+  message     String   @db.Text
   delivered   Boolean  @default(false)
   deliveredAt DateTime?
 
@@ -144,14 +156,46 @@ model ServerMessage {
 }
 
 model Program {
-  id          String   @id @default(cuid())
-  imageUrl    String?
-  name        String
-  description String
-  programPath String
-  downloadUrl String?
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  imageUrl    String?  @db.VarChar(500)
+  name        String   @db.VarChar(191)
+  description String   @db.Text
+  programPath String   @db.VarChar(500)
+  downloadUrl String?  @db.VarChar(500)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([name])
+}
+
+model AlertThreshold {
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  computerId  String   @db.VarChar(30)
+  computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+
+  cpuThreshold    Float @default(90)
+  ramThreshold    Float @default(85)
+  diskThreshold   Float @default(90)
+  eventLogErrors  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([computerId])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  userId      String?  @db.VarChar(30)
+  action      String   @db.VarChar(100)
+  details     String?  @db.Text
+  ipAddress   String?  @db.VarChar(45)
+  userAgent   String?  @db.Text
+  computerId  String?  @db.VarChar(30)
+  
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([action])
 }

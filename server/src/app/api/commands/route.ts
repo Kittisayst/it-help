@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { emitToComputer } from "@/lib/socket";
+import { logAudit } from "@/lib/audit";
 
 // POST /api/commands - Admin creates a command for a computer
 export async function POST(request: NextRequest) {
@@ -32,6 +34,15 @@ export async function POST(request: NextRequest) {
         params: params ? JSON.stringify(params) : null,
         status: "pending",
       },
+    });
+
+    emitToComputer(computerId, "command:new", command);
+
+    // Log audit
+    await logAudit({
+      action: "command_created",
+      details: `Command '${action}' sent to computer ${computer.hostname}`,
+      computerId,
     });
 
     return NextResponse.json(command);

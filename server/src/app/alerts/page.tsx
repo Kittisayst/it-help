@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle, RefreshCw, Download } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { AlertTriangle, CheckCircle, RefreshCw, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { useSocket } from "@/hooks/use-socket";
 
 interface AlertItem {
   id: string;
@@ -23,25 +24,44 @@ export default function AlertsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "resolved">("active");
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const { on, emit } = useSocket();
 
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     try {
-      const param = filter === "all" ? "" : filter === "active" ? "?resolved=false" : "?resolved=true";
-      const res = await fetch(`/api/alerts${param}`);
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "30");
+      if (filter !== "all") params.set("resolved", filter === "active" ? "false" : "true");
+      const res = await fetch(`/api/alerts?${params}`);
       const json = await res.json();
-      setAlerts(json);
+      setAlerts(json.data);
+      setTotal(json.total);
+      setTotalPages(json.totalPages);
     } catch (err) {
       console.error("Failed to fetch alerts:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filter]);
 
   useEffect(() => {
     fetchAlerts();
-    const interval = setInterval(fetchAlerts, 10000);
-    return () => clearInterval(interval);
-  }, [filter]);
+    const interval = setInterval(fetchAlerts, 30000);
+
+    emit("join:dashboard");
+    const off = on("alert:new", () => fetchAlerts());
+
+    return () => {
+      clearInterval(interval);
+      off();
+    };
+  }, [fetchAlerts]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => { setPage(1); }, [filter]);
 
   const resolveAlert = async (id: string) => {
     try {
@@ -112,6 +132,8 @@ export default function AlertsPage() {
       setSelectedAlerts(new Set(alerts.map(a => a.id)));
     }
   };
+
+  const filteredAlerts = alerts; // Already filtered by server
 
   if (loading) {
     return (
@@ -185,7 +207,7 @@ export default function AlertsPage() {
         )}
       </div>
 
-      {alerts.length === 0 ? (
+      {filteredAlerts.length === 0 ? (
         <div className="text-center py-20">
           <CheckCircle className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold">No alerts</h2>
@@ -196,13 +218,13 @@ export default function AlertsPage() {
           <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg">
             <input
               type="checkbox"
-              checked={selectedAlerts.size === alerts.length && alerts.length > 0}
+              checked={selectedAlerts.size === filteredAlerts.length && filteredAlerts.length > 0}
               onChange={toggleAll}
               className="w-4 h-4 rounded border-border"
             />
             <span className="text-sm text-muted">Select all</span>
           </div>
-          {alerts.map((alert) => (
+          {filteredAlerts.map((alert) => (
             <div
               key={alert.id}
               className={`flex items-center justify-between p-4 rounded-xl border ${
@@ -249,6 +271,33 @@ export default function AlertsPage() {
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted">
+            Page {page} of {totalPages} ({total} total)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
+import { validateAgentKey, unauthorizedResponse } from "@/lib/agent-auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,25 +32,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const apiKey = request.headers.get("x-api-key");
-    
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "API key required" },
-        { status: 401 }
-      );
-    }
-
-    // Find computer by API key
-    const computer = await prisma.computer.findFirst({
-      where: { apiKey },
-    });
-
+    const computer = await validateAgentKey(request);
     if (!computer) {
-      return NextResponse.json(
-        { error: "Invalid API key" },
-        { status: 401 }
-      );
+      return unauthorizedResponse();
     }
 
     const messages = await prisma.serverMessage.findMany({

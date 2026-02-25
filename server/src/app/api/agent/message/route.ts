@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { validateAgentByHostname, unauthorizedResponse } from "@/lib/agent-auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const apiKey = request.headers.get("x-api-key");
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 401 });
-    }
-
     const data = await request.json();
     const { hostname, department, message, ip_address } = data;
 
@@ -18,18 +14,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find computer by hostname (optional link)
-    let computerId: string | null = null;
-    try {
-      const computer = await prisma.computer.findUnique({
-        where: { hostname },
-      });
-      if (computer) {
-        computerId = computer.id;
-      }
-    } catch {
-      // Computer not found, continue without linking
-    }
+    // Validate agent key against hostname
+    const computer = await validateAgentByHostname(request, hostname);
+    const computerId = computer?.id || null;
 
     const msg = await prisma.message.create({
       data: {

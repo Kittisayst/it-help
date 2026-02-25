@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { validateAgentKey, unauthorizedResponse } from "@/lib/agent-auth";
+import { emitToComputer } from "@/lib/socket";
 
 // POST /api/agent/commands/[id]/result - Agent reports command execution result
 export async function POST(
@@ -7,9 +9,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const apiKey = request.headers.get("x-api-key");
-    if (!apiKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 401 });
+    const computer = await validateAgentKey(request);
+    if (!computer) {
+      return unauthorizedResponse();
     }
 
     const { id } = await params;
@@ -27,7 +29,7 @@ export async function POST(
       );
     }
 
-    await prisma.command.update({
+    const updated = await prisma.command.update({
       where: { id },
       data: {
         status: success ? "completed" : "failed",
@@ -35,6 +37,8 @@ export async function POST(
         executedAt: new Date(),
       },
     });
+
+    emitToComputer(command.computerId, "command:result", updated);
 
     return NextResponse.json({ success: true });
   } catch (error) {

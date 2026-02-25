@@ -41,6 +41,7 @@ export async function GET(
       macAddress: computer.macAddress,
       osVersion: computer.osVersion,
       department: computer.department,
+      group: computer.group,
       label: computer.label,
       status,
       lastSeenAt: computer.lastSeenAt,

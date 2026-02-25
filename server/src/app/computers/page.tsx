@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Monitor, Search, RefreshCw, Download } from "lucide-react";
+import { Monitor, Search, RefreshCw, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { UsageBar } from "@/components/usage-bar";
+import { useSocket } from "@/hooks/use-socket";
 
 interface ComputerItem {
   id: string;
@@ -12,6 +13,7 @@ interface ComputerItem {
   ipAddress: string;
   osVersion: string | null;
   department: string | null;
+  group: string | null;
   status: "online" | "offline" | "warning";
   lastSeenAt: string;
   lastReport: {
@@ -29,36 +31,55 @@ export default function ComputersPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
+  const [filterGroup, setFilterGroup] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const { on, emit } = useSocket();
 
-  const fetchComputers = async () => {
+  const fetchComputers = useCallback(async () => {
     try {
-      const res = await fetch("/api/computers");
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "30");
+      if (search) params.set("search", search);
+      if (filterDepartment !== "all") params.set("department", filterDepartment);
+      if (filterGroup !== "all") params.set("group", filterGroup);
+      const res = await fetch(`/api/computers?${params}`);
       const json = await res.json();
-      setComputers(json);
+      setComputers(json.data);
+      setTotal(json.total);
+      setTotalPages(json.totalPages);
     } catch (err) {
       console.error("Failed to fetch computers:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, filterDepartment, filterGroup]);
 
   useEffect(() => {
     fetchComputers();
-    const interval = setInterval(fetchComputers, 10000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(fetchComputers, 30000);
 
-  const filtered = computers.filter((c) => {
-    const matchSearch =
-      c.hostname.toLowerCase().includes(search.toLowerCase()) ||
-      c.ipAddress.includes(search) ||
-      (c.department || "").toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === "all" || c.status === filterStatus;
-    const matchDepartment = filterDepartment === "all" || c.department === filterDepartment;
-    return matchSearch && matchStatus && matchDepartment;
-  });
+    emit("join:dashboard");
+    const off = on("computer:updated", () => fetchComputers());
+
+    return () => {
+      clearInterval(interval);
+      off();
+    };
+  }, [fetchComputers]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1); }, [search, filterDepartment, filterGroup]);
+
+  // Client-side status filter (status is computed server-side, not filterable via query)
+  const filtered = filterStatus === "all"
+    ? computers
+    : computers.filter((c) => c.status === filterStatus);
 
   const departments = Array.from(new Set(computers.map(c => c.department || "General")));
+  const groups = Array.from(new Set(computers.map(c => c.group || "General")));
 
   if (loading) {
     return (
@@ -73,7 +94,7 @@ export default function ComputersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Computers</h1>
-          <p className="text-muted text-sm mt-1">{computers.length} computers registered</p>
+          <p className="text-muted text-sm mt-1">{total} computers registered</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -112,6 +133,16 @@ export default function ComputersPage() {
           <option value="all">All Departments</option>
           {departments.map((dept) => (
             <option key={dept} value={dept}>{dept}</option>
+          ))}
+        </select>
+        <select
+          value={filterGroup}
+          onChange={(e) => setFilterGroup(e.target.value)}
+          className="px-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-foreground"
+        >
+          <option value="all">All Groups</option>
+          {groups.map((group) => (
+            <option key={group} value={group}>{group}</option>
           ))}
         </select>
         <div className="flex gap-2">
@@ -190,6 +221,33 @@ export default function ComputersPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted">
+            Page {page} of {totalPages} ({total} total)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
     </div>

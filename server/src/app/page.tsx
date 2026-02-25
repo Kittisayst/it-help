@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
+import { useSocket } from "@/hooks/use-socket";
+import { useBrowserNotifications } from "@/hooks/use-browser-notifications";
 
 interface DashboardData {
   totalComputers: number;
@@ -35,6 +37,8 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { on, emit } = useSocket();
+  const { requestPermission, showNotification } = useBrowserNotifications();
 
   const fetchData = async () => {
     try {
@@ -50,8 +54,31 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    // Fallback polling (slower since we have socket)
+    const interval = setInterval(fetchData, 30000);
+
+    // Join dashboard room for real-time updates
+    emit("join:dashboard");
+
+    const offUpdated = on("computer:updated", () => fetchData());
+    const offAlert = on("alert:new", (payload: { hostname: string; alerts: string[] }) => {
+      fetchData();
+      // Show browser notification for new alerts
+      requestPermission().then((granted) => {
+        if (granted) {
+          showNotification(`New Alert: ${payload.hostname}`, {
+            body: payload.alerts.join(", "),
+            tag: `alert-${payload.hostname}`,
+          });
+        }
+      });
+    });
+
+    return () => {
+      clearInterval(interval);
+      offUpdated();
+      offAlert();
+    };
   }, []);
 
   if (loading) {

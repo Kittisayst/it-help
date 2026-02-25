@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { unauthorizedResponse } from "@/lib/agent-auth";
+import { emitToDashboard, emitToComputer } from "@/lib/socket";
 
 export async function POST(request: NextRequest) {
   try {
     const apiKey = request.headers.get("x-api-key");
     if (!apiKey) {
-      return NextResponse.json({ error: "Missing API key" }, { status: 401 });
+      return unauthorizedResponse("Missing API key");
     }
 
     const data = await request.json();
@@ -19,6 +21,7 @@ export async function POST(request: NextRequest) {
     let computer = await prisma.computer.findUnique({ where: { hostname } });
 
     if (!computer) {
+      // New computer — register with this API key
       computer = await prisma.computer.create({
         data: {
           hostname,
@@ -30,6 +33,10 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
+      // Existing computer — validate API key matches
+      if (computer.apiKey !== apiKey) {
+        return unauthorizedResponse("API key mismatch for this computer");
+      }
       computer = await prisma.computer.update({
         where: { id: computer.id },
         data: {
@@ -75,6 +82,16 @@ export async function POST(request: NextRequest) {
         services: metrics.services ? JSON.stringify(metrics.services) : null,
       },
     });
+
+    // Get custom thresholds for this computer (fallback to defaults)
+    const threshold = await prisma.alertThreshold.findUnique({
+      where: { computerId: computer.id },
+    });
+
+    const cpuThreshold = threshold?.cpuThreshold ?? 90;
+    const ramThreshold = threshold?.ramThreshold ?? 85;
+    const diskThreshold = threshold?.diskThreshold ?? 90;
+    const checkEventLogErrors = threshold?.eventLogErrors ?? true;
 
     // Check thresholds and create alerts (deduplicated by computer + type)
     const alerts: string[] = [];
@@ -133,26 +150,26 @@ export async function POST(request: NextRequest) {
 
     await upsertAlert(
       "cpu_high",
-      metrics.cpu_usage > 90,
+      metrics.cpu_usage > cpuThreshold,
       "critical",
       `CPU usage is ${metrics.cpu_usage.toFixed(1)}% on ${hostname}`
     );
 
     await upsertAlert(
       "ram_high",
-      metrics.ram_usage > 85,
+      metrics.ram_usage > ramThreshold,
       metrics.ram_usage > 95 ? "critical" : "warning",
       `RAM usage is ${metrics.ram_usage.toFixed(1)}% on ${hostname}`
     );
 
     await upsertAlert(
       "disk_high",
-      metrics.disk_usage > 90,
+      metrics.disk_usage > diskThreshold,
       metrics.disk_usage > 95 ? "critical" : "warning",
       `Disk usage is ${metrics.disk_usage.toFixed(1)}% on ${hostname}`
     );
 
-    if (metrics.event_logs && Array.isArray(metrics.event_logs)) {
+    if (checkEventLogErrors && metrics.event_logs && Array.isArray(metrics.event_logs)) {
       const errors = metrics.event_logs.filter(
         (log: { level: string }) => log.level === "Error" || log.level === "Critical"
       );
@@ -179,6 +196,30 @@ export async function POST(request: NextRequest) {
         createdAt: { lt: oneDayAgo },
       },
     });
+
+    // Emit real-time updates
+    emitToDashboard("computer:updated", {
+      id: computer.id,
+      hostname: computer.hostname,
+      status: "online",
+      cpuUsage: metrics.cpu_usage || 0,
+      ramUsage: metrics.ram_usage || 0,
+      diskUsage: metrics.disk_usage || 0,
+      lastSeenAt: new Date().toISOString(),
+    });
+
+    emitToComputer(computer.id, "report:new", {
+      reportId: report.id,
+      computerId: computer.id,
+    });
+
+    if (alerts.length > 0) {
+      emitToDashboard("alert:new", {
+        computerId: computer.id,
+        hostname: computer.hostname,
+        alerts,
+      });
+    }
 
     return NextResponse.json({
       success: true,

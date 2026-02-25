@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   MessageSquare,
   CheckCircle,
@@ -9,7 +9,10 @@ import {
   Mail,
   MailOpen,
   Monitor,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { useSocket } from "@/hooks/use-socket";
 
 interface MessageItem {
   id: string;
@@ -32,30 +35,49 @@ export default function MessagesPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const { on, emit } = useSocket();
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
-      const param = filter === "unread" ? "?unread=true" : "";
-      const res = await fetch(`/api/messages${param}`);
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", "30");
+      if (filter === "unread") params.set("unread", "true");
+      const res = await fetch(`/api/messages?${params}`);
       const json = await res.json();
-      let filtered = json.messages || [];
+      let filtered = json.data || [];
       if (filter === "read") {
         filtered = filtered.filter((m: MessageItem) => m.read);
       }
       setMessages(filtered);
+      setTotal(json.total);
+      setTotalPages(json.totalPages);
       setUnreadCount(json.unreadCount || 0);
     } catch (err) {
       console.error("Failed to fetch messages:", err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filter]);
 
   useEffect(() => {
     fetchMessages();
-    const interval = setInterval(fetchMessages, 10000);
-    return () => clearInterval(interval);
-  }, [filter]);
+    const interval = setInterval(fetchMessages, 30000);
+
+    emit("join:dashboard");
+    const off = on("alert:new", () => fetchMessages());
+
+    return () => {
+      clearInterval(interval);
+      off();
+    };
+  }, [fetchMessages]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => { setPage(1); }, [filter]);
 
   const markAsRead = async (id: string) => {
     try {
@@ -231,6 +253,33 @@ export default function MessagesPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted">
+            Page {page} of {totalPages} ({total} total)
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
+            >
+              Next
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
     </div>
