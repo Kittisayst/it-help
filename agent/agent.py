@@ -127,7 +127,7 @@ from remote_actions import execute_command
 from server_messages import process_server_messages
 
 # Self-update
-from updater import auto_update, get_current_version
+from updater import get_current_version
 
 # System tray (optional - gracefully skip if not available)
 tray = None
@@ -388,8 +388,6 @@ def poll_commands():
 
 # Flag to control the agent loop
 _running = True
-_loop_count = 0
-_UPDATE_CHECK_INTERVAL = 10  # Check for updates every N cycles
 
 
 def stop_agent():
@@ -418,16 +416,7 @@ def agent_loop():
             except Exception as e:
                 logger.debug(f"Error processing server messages: {e}")
 
-            # Check for self-update periodically
-            _loop_count += 1
-            if _loop_count % _UPDATE_CHECK_INTERVAL == 1:
-                try:
-                    should_restart = auto_update(CONFIG["server_url"])
-                    if should_restart:
-                        logger.info("Update applied - agent will restart")
-                        os._exit(0)
-                except Exception as e:
-                    logger.error(f"Auto-update error: {e}")
+            # Auto-update check removed as per user request (manual check via tray instead)
 
             # Collect data
             logger.info("Collecting system data...")
