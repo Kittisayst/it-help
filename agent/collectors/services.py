@@ -32,25 +32,34 @@ ConvertTo-Json -Compress
             logger.error(f"PowerShell services query failed: {result.stderr}")
             return []
 
+        # Parse JSON
         import json
-        services = json.loads(result.stdout)
+        try:
+            services = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            logger.error("Failed to decode services JSON")
+            return []
         
         # Ensure it's a list
         if not isinstance(services, list):
-            services = [services]
+            if services:
+                services = [services]
+            else:
+                return []
 
-        # Convert all services to standard format
-        service_list = []
+        # Convert to dictionary format
+        service_data = []
         for svc in services:
-            service_list.append({
+            if not isinstance(svc, dict):
+                continue
+            service_data.append({
                 "name": svc.get("Name", ""),
                 "displayName": svc.get("DisplayName", ""),
                 "status": str(svc.get("Status", "Unknown")),
                 "startType": str(svc.get("StartType", "Unknown")),
             })
 
-        logger.info(f"Collected {len(service_list)} services")
-        return service_list
+        return {"services": service_data}
 
     except subprocess.TimeoutExpired:
         logger.error("Services collection timed out")
