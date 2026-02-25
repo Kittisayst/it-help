@@ -20,9 +20,6 @@ DefaultDirName={autopf}\ITMonitorAgent
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=LICENSE.txt
-
-[Dirs]
-Name: "{userappdata}\ITMonitorAgent\logs"; Flags: uninsneveruninstall
 OutputDir=installer_output
 OutputBaseFilename=ITMonitorAgent-Setup-v{#MyAppVersion}
 Compression=lzma
@@ -35,6 +32,9 @@ SetupIconFile=Icon_Logo.ico
 CloseApplications=yes
 CloseApplicationsFilter=agent.exe
 RestartApplications=no
+
+[Dirs]
+Name: "{userappdata}\ITMonitorAgent\logs"; Flags: uninsneveruninstall
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
