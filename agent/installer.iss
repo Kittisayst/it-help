@@ -52,11 +52,11 @@ Source: "uninstall_service.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Configure Agent"; Filename: "notepad.exe"; Parameters: """{app}\config.json"""
+Name: "{group}\Configure Agent"; Filename: "notepad.exe"; Parameters: """{userappdata}\ITMonitorAgent\config.json"""
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "notepad.exe"; Parameters: """{app}\config.json"""; Description: "Configure agent settings (API key, server URL)"; Flags: postinstall shellexec skipifsilent nowait
+Filename: "notepad.exe"; Parameters: """{userappdata}\ITMonitorAgent\config.json"""; Description: "Configure agent settings (API key, server URL)"; Flags: postinstall shellexec skipifsilent nowait
 
 [UninstallRun]
 Filename: "cmd.exe"; Parameters: "/c schtasks /delete /tn ""ITMonitorAgent"" /f"; Flags: runhidden waituntilterminated
@@ -94,6 +94,7 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
+  ConfigDir: String;
   ConfigFile: String;
   ConfigContent: String;
   ResultCode: Integer;
@@ -101,11 +102,13 @@ var
 begin
   if CurStep = ssPostInstall then
   begin
-    ConfigFile := ExpandConstant('{app}\config.json');
+    ConfigDir := ExpandConstant('{userappdata}\ITMonitorAgent');
+    ConfigFile := ConfigDir + '\config.json';
     
     // Create default config if doesn't exist
     if not FileExists(ConfigFile) then
     begin
+      ForceDirectories(ConfigDir);
       ConfigContent := '{' + #13#10 +
         '  "server_url": "http://localhost:3000",' + #13#10 +
         '  "api_key": "your-api-key-here",' + #13#10 +

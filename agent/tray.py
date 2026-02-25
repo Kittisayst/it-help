@@ -5,6 +5,7 @@ Shows agent status in Windows system tray with context menu.
 
 import sys
 import os
+import json
 import threading
 import socket
 import webbrowser
@@ -48,6 +49,28 @@ class AgentTray:
         if getattr(sys, 'frozen', False):
             return os.path.dirname(sys.executable)
         return os.path.dirname(os.path.abspath(__file__))
+
+    def _is_installed_in_program_files(self):
+        """Return True when running from Program Files."""
+        program_files = [
+            os.environ.get('ProgramFiles', 'C:\\Program Files'),
+            os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)'),
+        ]
+        base_dir_norm = os.path.normcase(os.path.abspath(self._base_dir))
+        for pf in program_files:
+            if not pf:
+                continue
+            pf_norm = os.path.normcase(os.path.abspath(pf))
+            if base_dir_norm.startswith(pf_norm):
+                return True
+        return False
+
+    def _get_config_path(self):
+        """Get writable config path for current runtime mode."""
+        if self._is_installed_in_program_files():
+            app_data = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+            return os.path.join(app_data, 'ITMonitorAgent', 'config.json')
+        return os.path.join(self._base_dir, 'config.json')
 
     def _load_ico_file(self, color):
         """Try to load .ico file from disk."""
@@ -362,7 +385,11 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
     def _open_config(self, icon, item):
         """Open config file."""
         try:
-            config_path = os.path.join(self._base_dir, "config.json")
+            config_path = self._get_config_path()
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            if not os.path.exists(config_path):
+                with open(config_path, "w", encoding="utf-8") as f:
+                    json.dump(self.config, f, indent=2, ensure_ascii=False)
             os.startfile(config_path)
         except Exception:
             pass

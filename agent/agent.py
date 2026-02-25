@@ -10,6 +10,7 @@ import time
 import json
 import logging
 import threading
+import shutil
 import requests
 
 
@@ -25,13 +26,39 @@ def get_base_dir():
 
 BASE_DIR = get_base_dir()
 
+def is_running_from_program_files():
+    """Return True when agent is installed under Program Files."""
+    program_files = [
+        os.environ.get('ProgramFiles', 'C:\\Program Files'),
+        os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)'),
+    ]
+    base_dir_norm = os.path.normcase(os.path.abspath(BASE_DIR))
+    for pf in program_files:
+        if not pf:
+            continue
+        pf_norm = os.path.normcase(os.path.abspath(pf))
+        if base_dir_norm.startswith(pf_norm):
+            return True
+    return False
+
+
+def get_config_path():
+    """Get writable config path (AppData for installed mode, BASE_DIR for portable mode)."""
+    if is_running_from_program_files():
+        app_data = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+        config_dir = os.path.join(app_data, 'ITMonitorAgent')
+        return os.path.join(config_dir, 'config.json')
+    return os.path.join(BASE_DIR, 'config.json')
+
+
 # Add agent directory to path (for .py mode)
 sys.path.insert(0, BASE_DIR)
 
 
 def load_config():
     """Load configuration from config.json (external, editable file)."""
-    config_path = os.path.join(BASE_DIR, "config.json")
+    config_path = get_config_path()
+    legacy_config_path = os.path.join(BASE_DIR, "config.json")
     defaults = {
         "server_url": "http://localhost:3000",
         "api_key": "it-monitor-secret-key-2024",
@@ -44,6 +71,15 @@ def load_config():
         "retry_delay": 5,
     }
 
+    # Migration path: installed builds used to keep config in Program Files.
+    if config_path != legacy_config_path and not os.path.exists(config_path) and os.path.exists(legacy_config_path):
+        try:
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
+            shutil.copy2(legacy_config_path, config_path)
+            print(f"Migrated config.json to writable path: {config_path}")
+        except Exception as e:
+            print(f"Warning: Could not migrate config.json: {e}")
+
     if os.path.exists(config_path):
         try:
             with open(config_path, "r", encoding="utf-8") as f:
@@ -54,6 +90,7 @@ def load_config():
     else:
         # Create default config.json if it doesn't exist
         try:
+            os.makedirs(os.path.dirname(config_path), exist_ok=True)
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(defaults, f, indent=2, ensure_ascii=False)
             print(f"Created default config.json at {config_path}")
@@ -137,15 +174,28 @@ except PermissionError:
     os.makedirs(log_dir, exist_ok=True)
     print(f"Using temp logs directory: {log_dir}")
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(os.path.join(log_dir, "agent.log")),
-        logging.StreamHandler(),
-    ],
-)
+from logging.handlers import RotatingFileHandler
+
+log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+
 logger = logging.getLogger("ITMonitorAgent")
+logger.setLevel(logging.INFO)
+
+# Rotating file handler: 5MB per file, keep 3 backups
+file_handler = RotatingFileHandler(
+    os.path.join(log_dir, "agent.log"),
+    maxBytes=5 * 1024 * 1024,
+    backupCount=3,
+    encoding="utf-8",
+)
+file_handler.setFormatter(log_formatter)
+logger.addHandler(file_handler)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+logger.addHandler(console_handler)
+
 logger.info(f"Agent started, logs directory: {log_dir}")
 
 
@@ -241,9 +291,17 @@ def send_report(data):
     return False
 
 
+def get_offline_dir():
+    """Get writable offline reports directory."""
+    if is_running_from_program_files():
+        app_data = os.environ.get('APPDATA', os.path.expanduser('~\\AppData\\Roaming'))
+        return os.path.join(app_data, 'ITMonitorAgent', 'offline_reports')
+    return os.path.join(BASE_DIR, "offline_reports")
+
+
 def save_offline_report(data):
     """Save report locally when server is unreachable."""
-    offline_dir = os.path.join(BASE_DIR, "offline_reports")
+    offline_dir = get_offline_dir()
     os.makedirs(offline_dir, exist_ok=True)
 
     filename = f"report_{int(time.time())}.json"
@@ -259,7 +317,7 @@ def save_offline_report(data):
 
 def send_offline_reports():
     """Try to send any saved offline reports."""
-    offline_dir = os.path.join(BASE_DIR, "offline_reports")
+    offline_dir = get_offline_dir()
     if not os.path.exists(offline_dir):
         return
 
