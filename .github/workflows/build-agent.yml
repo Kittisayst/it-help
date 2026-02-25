@@ -3,6 +3,8 @@ name: Build IT Monitor Agent
 on:
     push:
         branches: [main]
+        tags:
+            - "v*"
         paths:
             - "agent/**"
     workflow_dispatch:
@@ -10,6 +12,8 @@ on:
 jobs:
     build:
         runs-on: windows-latest
+        permissions:
+            contents: write
 
         steps:
             - uses: actions/checkout@v4
