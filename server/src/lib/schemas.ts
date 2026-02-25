@@ -40,6 +40,11 @@ export const AgentReportSchema = z.object({
     usb_devices: z.any().nullable().optional(),
     windows_update: z.any().nullable().optional(),
     services: z.any().nullable().optional(),
+
+    // Advanced Monitoring (Phase 4)
+    print_history: z.array(z.any()).nullable().optional(),
+    bandwidth_usage: z.any().nullable().optional(),
+    app_usage: z.any().nullable().optional(),
 });
 
 export const CommandResultSchema = z.object({

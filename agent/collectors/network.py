@@ -1,6 +1,11 @@
 import socket
 import psutil
 import uuid
+import time
+
+# Global counters for bandwidth calculation
+_last_io_counters = None
+_last_check_time = 0
 
 
 def collect_network():
@@ -48,4 +53,38 @@ def collect_network():
         "mac_address": mac_address,
         "network_up": net_up,
         "network_info": net_info,
+        "bandwidth_usage": collect_bandwidth_usage()
     }
+
+def collect_bandwidth_usage():
+    """Calculate bytes sent/received since last check."""
+    global _last_io_counters, _last_check_time
+    
+    try:
+        current_io = psutil.net_io_counters()
+        now = time.time()
+        
+        if _last_io_counters is None:
+            # First run - store current values and return zeros
+            _last_io_counters = current_io
+            _last_check_time = now
+            return {"sent_bytes": 0, "recv_bytes": 0, "duration": 0}
+            
+        elapsed = now - _last_check_time
+        sent_bytes = current_io.bytes_sent - _last_io_counters.bytes_sent
+        recv_bytes = current_io.bytes_recv - _last_io_counters.bytes_recv
+        
+        # Handle counter reset (rare)
+        if sent_bytes < 0: sent_bytes = 0
+        if recv_bytes < 0: recv_bytes = 0
+        
+        _last_io_counters = current_io
+        _last_check_time = now
+        
+        return {
+            "sent_bytes": sent_bytes,
+            "recv_bytes": recv_bytes,
+            "duration": round(elapsed, 2)
+        }
+    except Exception:
+        return {"sent_bytes": 0, "recv_bytes": 0, "duration": 0}

@@ -83,6 +83,11 @@ model Report {
   usbDevices      String? @db.LongText
   windowsUpdate   String? @db.LongText
   services        String? @db.LongText
+  
+  // Advanced Monitoring (Phase 4)
+  printHistory    String? @db.LongText
+  bandwidthUsage  String? @db.Text
+  appUsage        String? @db.LongText
 
   createdAt   DateTime @default(now())
 

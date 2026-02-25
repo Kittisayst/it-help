@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
         usbDevices: data.usb_devices ? JSON.stringify(data.usb_devices) : null,
         windowsUpdate: data.windows_update ? JSON.stringify(data.windows_update) : null,
         services: data.services ? JSON.stringify(data.services) : null,
+        printHistory: data.print_history ? JSON.stringify(data.print_history) : null,
+        bandwidthUsage: data.bandwidth_usage ? JSON.stringify(data.bandwidth_usage) : null,
+        appUsage: data.app_usage ? JSON.stringify(data.app_usage) : null,
       },
     });
 

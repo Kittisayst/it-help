@@ -221,6 +221,8 @@ def collect_all_data():
         ("USB Devices", collect_usb_devices, {}),
         ("Windows Update", collect_windows_update, {}),
         ("Services", collect_services, {}),
+        ("Print History", collect_print_history, {}),
+        ("App Usage", collect_app_usage, {}),
     ]
 
     if CONFIG.get("collect_software", True):
@@ -455,6 +457,9 @@ def main():
     if TRAY_AVAILABLE:
         # Create tray icon
         tray = AgentTray(config=CONFIG, on_quit=stop_agent, log_dir=log_dir)
+
+        # Start background trackers
+        start_tracking()
 
         # Run agent loop in background thread
         agent_thread = threading.Thread(target=agent_loop, daemon=True)

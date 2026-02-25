@@ -15,6 +15,8 @@ from .shared_folders import collect_shared_folders
 from .usb_devices import collect_usb_devices
 from .windows_update import collect_windows_update
 from .services import collect_services
+from .printers import collect_services as _, collect_print_history  # Fix: use the history function
+from .active_apps import start_tracking, collect_app_usage
 
 __all__ = [
     "collect_cpu",
@@ -34,4 +36,7 @@ __all__ = [
     "collect_usb_devices",
     "collect_windows_update",
     "collect_services",
+    "collect_print_history",
+    "start_tracking",
+    "collect_app_usage",
 ]
