@@ -455,55 +455,10 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
 
     def _check_update(self, icon, item):
         """Manually check for agent update."""
-        def _do_check():
-            import ctypes
-            import logging
-            logger = logging.getLogger("ITMonitorAgent")
-
-            try:
-                from self_update import check_for_update, download_and_update, get_current_version
-
-                result = check_for_update(self.config.get("server_url", "http://localhost:3000"))
-                if not result:
-                    ctypes.windll.user32.MessageBoxW(
-                        0, "Could not check for updates.\nServer may be unreachable.",
-                        "IT Monitor - Update", 0x30 | 0x00010000
-                    )
-                    return
-
-                if not result.get("available"):
-                    ctypes.windll.user32.MessageBoxW(
-                        0, f"You are running the latest version.\n\nCurrent: {get_current_version()}\nLatest: {result.get('version', 'unknown')}",
-                        "IT Monitor - Update", 0x40 | 0x00010000
-                    )
-                    return
-
-                answer = ctypes.windll.user32.MessageBoxW(
-                    0,
-                    f"New version available!\n\nCurrent: {result.get('current', 'unknown')}\nNew: {result['version']}\n\nDownload and install now?",
-                    "IT Monitor - Update",
-                    0x04 | 0x20 | 0x00010000  # MB_YESNO | MB_ICONQUESTION | MB_TOPMOST
-                )
-
-                if answer == 6:  # IDYES
-                    should_restart = download_and_update(result["download_url"], result["version"])
-                    if should_restart:
-                        logger.info("Manual update applied - restarting")
-                        os._exit(0)
-                    else:
-                        ctypes.windll.user32.MessageBoxW(
-                            0, "Update failed or not applicable in dev mode.",
-                            "IT Monitor - Update", 0x30 | 0x00010000
-                        )
-
-            except Exception as e:
-                logger.error(f"Manual update check error: {e}")
-                ctypes.windll.user32.MessageBoxW(
-                    0, f"Update check failed:\n{str(e)[:200]}",
-                    "IT Monitor - Error", 0x10 | 0x00010000
-                )
-
-        threading.Thread(target=_do_check, daemon=True).start()
+        try:
+            webbrowser.open("https://github.com/Kittisayst/it-help/releases")
+        except Exception:
+            pass
 
     def _quit(self, icon, item):
         """Quit the agent."""
