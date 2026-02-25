@@ -32,9 +32,10 @@ class AgentTray:
     STATUS_ERROR = "error"
     STATUS_OFFLINE = "offline"
 
-    def __init__(self, config, on_quit=None):
+    def __init__(self, config, on_quit=None, log_dir=None):
         self.config = config
         self.on_quit = on_quit
+        self.log_dir = log_dir
         self.status = self.STATUS_RUNNING
         self.last_report_time = "N/A"
         self.last_report_success = None
@@ -376,7 +377,10 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {{
     def _open_logs(self, icon, item):
         """Open logs folder."""
         try:
-            log_dir = os.path.join(self._base_dir, "logs")
+            log_dir = self.log_dir
+            if not log_dir:
+                log_dir = os.path.join(self._base_dir, "logs")
+            
             os.makedirs(log_dir, exist_ok=True)
             os.startfile(log_dir)
         except Exception:

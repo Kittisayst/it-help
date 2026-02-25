@@ -465,7 +465,7 @@ def main():
 
     if TRAY_AVAILABLE:
         # Create tray icon
-        tray = AgentTray(config=CONFIG, on_quit=stop_agent)
+        tray = AgentTray(config=CONFIG, on_quit=stop_agent, log_dir=log_dir)
 
         # Run agent loop in background thread
         agent_thread = threading.Thread(target=agent_loop, daemon=True)
