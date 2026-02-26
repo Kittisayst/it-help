@@ -55,6 +55,9 @@ export interface ReportData {
   usbDevices: Array<{ name: string; status: string; manufacturer: string }> | null;
   windowsUpdate: { recent_updates: Array<{ id: string; description: string; installed_on: string }>; pending_count: number } | null;
   services: Array<{ name: string; displayName: string; status: string; startType: string }> | null;
+  printHistory: Array<{ document: string; user: string; printer: string; pages: string; timestamp: string }> | null;
+  bandwidthUsage: { sent_bytes: number; recv_bytes: number; duration: number } | null;
+  appUsage: Record<string, number> | null;
 }
 
 export interface CommandItem {

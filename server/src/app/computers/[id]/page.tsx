@@ -19,6 +19,8 @@ import {
     Camera,
     Download,
     FileText,
+    Activity,
+    History,
 } from "lucide-react";
 import { exportToPDF } from "./export-pdf";
 import { StatusBadge } from "@/components/status-badge";
@@ -35,6 +37,8 @@ import {
     StartupTab,
     ServicesTab,
     SystemTab,
+    UsageTab,
+    PrintHistoryTab,
 } from "./data-tabs";
 
 import { ThresholdsTab } from "./thresholds-tab";
@@ -49,6 +53,8 @@ type TabKey =
     | "startup"
     | "services"
     | "system"
+    | "usage"
+    | "print_history"
     | "actions"
     | "thresholds";
 
@@ -271,6 +277,10 @@ export default function ComputerDetailPage() {
                 );
             case "system":
                 return <SystemTab report={report} />;
+            case "usage":
+                return <UsageTab report={report} />;
+            case "print_history":
+                return <PrintHistoryTab report={report} />;
             case "actions":
                 return <ActionsTab computer={computer} />;
             case "thresholds":
@@ -472,6 +482,12 @@ export default function ComputerDetailPage() {
                     { key: "licenses", label: "Licenses", icon: KeyRound },
                     { key: "startup", label: "Startup", icon: Play },
                     { key: "services", label: "Services", icon: Cog },
+                    { key: "usage", label: "Usage Statistics", icon: Activity },
+                    {
+                        key: "print_history",
+                        label: "Print History",
+                        icon: History,
+                    },
                     { key: "system", label: "System", icon: Settings },
                     {
                         key: "thresholds",
