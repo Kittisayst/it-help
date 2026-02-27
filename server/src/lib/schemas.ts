@@ -49,7 +49,8 @@ export const AgentReportSchema = z.object({
 
 export const CommandResultSchema = z.object({
     success: z.boolean(),
-    output: z.string().optional(),
+    output: z.string().nullable().optional(),
+    screenshot: z.string().nullable().optional(),
 });
 
 export const AgentMessageSchema = z.object({

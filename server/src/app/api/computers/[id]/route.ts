@@ -77,6 +77,9 @@ export async function GET(
           usbDevices: lastReport.usbDevices ? JSON.parse(lastReport.usbDevices) : null,
           windowsUpdate: lastReport.windowsUpdate ? JSON.parse(lastReport.windowsUpdate) : null,
           services: lastReport.services ? JSON.parse(lastReport.services) : null,
+          printHistory: lastReport.printHistory ? JSON.parse(lastReport.printHistory) : null,
+          bandwidthUsage: lastReport.bandwidthUsage ? (typeof lastReport.bandwidthUsage === 'string' ? JSON.parse(lastReport.bandwidthUsage) : lastReport.bandwidthUsage) : null,
+          appUsage: lastReport.appUsage ? JSON.parse(lastReport.appUsage) : null,
         }
         : null,
       history: computer.reports.map((r) => ({

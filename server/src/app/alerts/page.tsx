@@ -115,10 +115,10 @@ export default function AlertsPage() {
                   : "resolved";
         const confirmText =
             scope === "all"
-                ? "Clear all alerts?"
+                ? "ລ້າງການແຈ້ງເຕືອນທັງໝົດ?"
                 : scope === "active"
-                  ? "Clear all active alerts?"
-                  : "Clear all resolved alerts?";
+                  ? "ລ້າງການແຈ້ງເຕືອນທີ່ກຳລັງເກີດຂຶ້ນທັງໝົດ?"
+                  : "ລ້າງການແຈ້ງເຕືອນທີ່ແກ້ໄຂແລ້ວທັງໝົດ?";
 
         if (!confirm(confirmText)) return;
 
@@ -162,9 +162,9 @@ export default function AlertsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Alerts</h1>
+                    <h1 className="text-2xl font-bold">ການແຈ້ງເຕືອນ</h1>
                     <p className="text-muted text-sm mt-1">
-                        Monitor system alerts and warnings
+                        ຕິດຕາມການແຈ້ງເຕືອນ ແລະ ຄຳເຕືອນຂອງລະບົບ
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -172,7 +172,7 @@ export default function AlertsPage() {
                         onClick={clearAlerts}
                         className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors text-sm"
                     >
-                        Clear
+                        ລ້າງຂໍ້ມູນ
                     </button>
                     <button
                         onClick={() => {
@@ -187,7 +187,7 @@ export default function AlertsPage() {
                         className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
                     >
                         <Download className="w-4 h-4" />
-                        Export CSV
+                        ສົ່ງອອກ CSV
                     </button>
                     <button
                         onClick={() => refetch()}
@@ -197,7 +197,7 @@ export default function AlertsPage() {
                         <RefreshCw
                             className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`}
                         />
-                        Refresh
+                        ໂຫຼດໃໝ່
                     </button>
                 </div>
             </div>
@@ -208,27 +208,31 @@ export default function AlertsPage() {
                         <button
                             key={f}
                             onClick={() => setFilter(f)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                 filter === f
                                     ? "bg-accent text-white"
                                     : "bg-card border border-border text-muted hover:text-foreground"
                             }`}
                         >
-                            {f}
+                            {f === "active"
+                                ? "ກຳລັງເກີດຂຶ້ນ"
+                                : f === "resolved"
+                                  ? "ແກ້ໄຂແລ້ວ"
+                                  : "ທັງໝົດ"}
                         </button>
                     ))}
                 </div>
                 {selectedAlerts.size > 0 && (
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-muted">
-                            {selectedAlerts.size} selected
+                            ເລືອກແລ້ວ {selectedAlerts.size} ລາຍການ
                         </span>
                         <button
                             onClick={resolveSelected}
                             className="flex items-center gap-2 px-4 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/30 transition-colors text-sm font-medium"
                         >
                             <CheckCircle className="w-4 h-4" />
-                            Resolve Selected
+                            ແກ້ໄຂລາຍການທີ່ເລືອກ
                         </button>
                     </div>
                 )}
@@ -237,9 +241,9 @@ export default function AlertsPage() {
             {filteredAlerts.length === 0 ? (
                 <div className="text-center py-20">
                     <CheckCircle className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
-                    <h2 className="text-xl font-semibold">No alerts</h2>
+                    <h2 className="text-xl font-semibold">ບໍ່ມີການແຈ້ງເຕືອນ</h2>
                     <p className="text-muted mt-2">
-                        All systems are running normally
+                        ລະບົບທັງໝົດເຮັດວຽກເປັນປົກກະຕິ
                     </p>
                 </div>
             ) : (
@@ -254,7 +258,7 @@ export default function AlertsPage() {
                             onChange={toggleAll}
                             className="w-4 h-4 rounded border-border"
                         />
-                        <span className="text-sm text-muted">Select all</span>
+                        <span className="text-sm text-muted">ເລືອກທັງໝົດ</span>
                     </div>
                     {filteredAlerts.map((alert) => (
                         <div
@@ -290,7 +294,7 @@ export default function AlertsPage() {
                                     <p className="text-xs text-muted mt-1">
                                         {alert.computer.hostname} (
                                         {alert.computer.ipAddress}) |{" "}
-                                        {alert.computer.department || "General"}{" "}
+                                        {alert.computer.department || "ທົ່ວໄປ"}{" "}
                                         |{" "}
                                         {new Date(
                                             alert.createdAt,
@@ -304,7 +308,7 @@ export default function AlertsPage() {
                                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-medium hover:bg-emerald-500/20 transition-colors shrink-0 ml-4"
                                 >
                                     <CheckCircle className="w-3.5 h-3.5" />
-                                    Resolve
+                                    ແກ້ໄຂແລ້ວ
                                 </button>
                             )}
                         </div>
@@ -316,7 +320,7 @@ export default function AlertsPage() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between pt-2">
                     <p className="text-sm text-muted">
-                        Page {page} of {totalPages} ({total} total)
+                        ໜ້າ {page} ຈາກ {totalPages} (ທັງໝົດ {total} ລາຍການ)
                     </p>
                     <div className="flex gap-2">
                         <button
@@ -325,7 +329,7 @@ export default function AlertsPage() {
                             className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
                         >
                             <ChevronLeft className="w-4 h-4" />
-                            Previous
+                            ກ່ອນໜ້າ
                         </button>
                         <button
                             onClick={() =>
@@ -334,7 +338,7 @@ export default function AlertsPage() {
                             disabled={page >= totalPages}
                             className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
                         >
-                            Next
+                            ຖັດໄປ
                             <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>

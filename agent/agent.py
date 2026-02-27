@@ -120,6 +120,10 @@ from collectors import (
     collect_usb_devices,
     collect_windows_update,
     collect_services,
+    # Phase 4 Advanced Monitoring
+    collect_print_history,
+    start_tracking,
+    collect_app_usage,
 )
 
 # Remote actions
@@ -454,12 +458,18 @@ def main():
     logger.info(f"System Tray: {'Enabled' if TRAY_AVAILABLE else 'Disabled'}")
     logger.info("=" * 50)
 
+    # Start background trackers (Always run these even without tray)
+    try:
+        start_tracking()
+        logger.info("Background usage tracking initiated")
+    except NameError:
+        logger.error("Failed to start tracking: start_tracking is not defined")
+    except Exception as e:
+        logger.error(f"Error starting background trackers: {e}")
+
     if TRAY_AVAILABLE:
         # Create tray icon
         tray = AgentTray(config=CONFIG, on_quit=stop_agent, log_dir=log_dir)
-
-        # Start background trackers
-        start_tracking()
 
         # Run agent loop in background thread
         agent_thread = threading.Thread(target=agent_loop, daemon=True)

@@ -38,7 +38,7 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                 setThresholds(data);
             } catch (err) {
                 console.error(err);
-                toast.error("Failed to load thresholds");
+                toast.error("ບໍ່ສາມາດໂຫຼດຂໍ້ມູນເກນການແຈ້ງເຕືອນໄດ້");
             } finally {
                 setLoading(false);
             }
@@ -57,10 +57,10 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                 body: JSON.stringify(thresholds),
             });
             if (!res.ok) throw new Error("Failed to update thresholds");
-            toast.success("Thresholds updated successfully");
+            toast.success("ອັບເດດເກນການແຈ້ງເຕືອນສຳເລັດແລ້ວ");
         } catch (err) {
             console.error(err);
-            toast.error("Failed to update thresholds");
+            toast.error("ອັບເດດເກນການແຈ້ງເຕືອນບໍ່ສຳເລັດ");
         } finally {
             setSaving(false);
         }
@@ -85,11 +85,10 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                     </div>
                     <div>
                         <h3 className="font-semibold text-lg">
-                            Alert Thresholds
+                            ກຳນົດເກນການແຈ້ງເຕືອນ (Alert Thresholds)
                         </h3>
                         <p className="text-muted text-sm">
-                            Customize when alerts are triggered for this
-                            computer
+                            ປັບແຕ່ງລະດັບການແຈ້ງເຕືອນສຳລັບຄອມພິວເຕີເຄື່ອງນີ້
                         </p>
                     </div>
                 </div>
@@ -100,7 +99,7 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                         <div className="flex items-center justify-between">
                             <label className="flex items-center gap-2 text-sm font-medium">
                                 <Cpu className="w-4 h-4 text-accent" />
-                                CPU Usage Threshold
+                                ເກນການໃຊ້ງານ CPU (%)
                             </label>
                             <span className="text-sm font-mono font-bold text-accent">
                                 {thresholds.cpuThreshold}%
@@ -120,8 +119,7 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                             className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer accent-accent"
                         />
                         <p className="text-xs text-muted">
-                            Triggers a critical alert when CPU usage exceeds
-                            this value.
+                            ແຈ້ງເຕືອນລະດັບວິກິດເມື່ອການໃຊ້ງານ CPU ສູງກວ່າຄ່ານີ້.
                         </p>
                     </div>
 
@@ -130,7 +128,7 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                         <div className="flex items-center justify-between">
                             <label className="flex items-center gap-2 text-sm font-medium">
                                 <Cpu className="w-4 h-4 text-emerald-400" />
-                                RAM Usage Threshold
+                                ເກນການໃຊ້ງານ RAM (%)
                             </label>
                             <span className="text-sm font-mono font-bold text-emerald-400">
                                 {thresholds.ramThreshold}%
@@ -160,7 +158,7 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                         <div className="flex items-center justify-between">
                             <label className="flex items-center gap-2 text-sm font-medium">
                                 <HardDrive className="w-4 h-4 text-blue-400" />
-                                Disk Usage Threshold
+                                ເກນການໃຊ້ງານພື້ນທີ່ຈັດເກັບ (Disk %)
                             </label>
                             <span className="text-sm font-mono font-bold text-blue-400">
                                 {thresholds.diskThreshold}%
@@ -180,8 +178,8 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                             className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer accent-blue-500"
                         />
                         <p className="text-xs text-muted">
-                            Triggers a warning alert at this level, and critical
-                            above 95%.
+                            ແຈ້ງເຕືອນລະດັບເຕືອນໄພເມື່ອຮອດລະດັບນີ້, ແລະ
+                            ວິກິດເມື່ອສູງກວ່າ 95%.
                         </p>
                     </div>
 
@@ -189,11 +187,11 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                     <div className="flex items-center justify-between p-4 bg-background border border-border rounded-lg">
                         <div className="space-y-0.5">
                             <label className="text-sm font-medium">
-                                Monitor Event Logs
+                                ຕິດຕາມບັນທຶກເຫດການ (Monitor Event Logs)
                             </label>
                             <p className="text-xs text-muted">
-                                Generate alerts for Critical/Error Windows
-                                events
+                                ແຈ້ງເຕືອນເມື່ອພົບເຫດການ Windows ລະດັບ Critical
+                                ຫຼື Error
                             </p>
                         </div>
                         <button
@@ -231,7 +229,7 @@ export function ThresholdsTab({ computerId }: ThresholdsTabProps) {
                         ) : (
                             <Save className="w-4 h-4" />
                         )}
-                        Save Changes
+                        ບັນທຶກການປ່ຽນແປງ
                     </button>
                 </div>
             </div>

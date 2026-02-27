@@ -90,10 +90,10 @@ export default function ComputersPage() {
             : computers.filter((c) => c.status === filterStatus);
 
     const departments = Array.from(
-        new Set(computers.map((c) => c.department || "General")),
+        new Set(computers.map((c) => c.department || "ທົ່ວໄປ")),
     );
     const groups = Array.from(
-        new Set(computers.map((c) => c.group || "General")),
+        new Set(computers.map((c) => c.group || "ທົ່ວໄປ")),
     );
 
     if (isLoading) {
@@ -108,9 +108,9 @@ export default function ComputersPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Computers</h1>
+                    <h1 className="text-2xl font-bold">ຄອມພິວເຕີ</h1>
                     <p className="text-muted text-sm mt-1">
-                        {total} computers registered
+                        {total} ຄອມພິວເຕີທີ່ລົງທະບຽນ
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -124,7 +124,7 @@ export default function ComputersPage() {
                         className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-border/50 transition-colors text-sm"
                     >
                         <Download className="w-4 h-4" />
-                        Export CSV
+                        ສົ່ງອອກ CSV
                     </button>
                     <button
                         onClick={() => refetch()}
@@ -134,7 +134,7 @@ export default function ComputersPage() {
                         <RefreshCw
                             className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`}
                         />
-                        Refresh
+                        ໂຫຼດຄືນໃໝ່
                     </button>
                 </div>
             </div>
@@ -144,7 +144,7 @@ export default function ComputersPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                     <input
                         type="text"
-                        placeholder="Search by hostname, IP, or department..."
+                        placeholder="ຄົ້ນຫາດ້ວຍຊື່ເຄື່ອງ, IP, ຫຼື ພະແນກ..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-foreground placeholder:text-muted"
@@ -155,7 +155,7 @@ export default function ComputersPage() {
                     onChange={(e) => setFilterDepartment(e.target.value)}
                     className="px-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-foreground"
                 >
-                    <option value="all">All Departments</option>
+                    <option value="all">ທັງໝົດພະແນກ</option>
                     {departments.map((dept) => (
                         <option key={dept} value={dept}>
                             {dept}
@@ -167,7 +167,7 @@ export default function ComputersPage() {
                     onChange={(e) => setFilterGroup(e.target.value)}
                     className="px-4 py-2.5 bg-card border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 text-foreground"
                 >
-                    <option value="all">All Groups</option>
+                    <option value="all">ທັງໝົດກຸ່ມ</option>
                     {groups.map((group) => (
                         <option key={group} value={group}>
                             {group}
@@ -185,7 +185,13 @@ export default function ComputersPage() {
                                     : "bg-card border border-border text-muted hover:text-foreground"
                             }`}
                         >
-                            {status}
+                            {status === "all"
+                                ? "ທັງໝົດ"
+                                : status === "online"
+                                  ? "ອອນລາຍ"
+                                  : status === "warning"
+                                    ? "ຄຳເຕືອນ"
+                                    : "ອັອຟລາຍ"}
                         </button>
                     ))}
                 </div>
@@ -195,12 +201,12 @@ export default function ComputersPage() {
                 <div className="text-center py-20">
                     <Monitor className="w-16 h-16 text-muted mx-auto mb-4" />
                     <h2 className="text-xl font-semibold">
-                        No computers found
+                        ບໍ່ພົບຂໍ້ມູນຄອມພິວເຕີ
                     </h2>
                     <p className="text-muted mt-2">
                         {search
-                            ? "Try a different search term"
-                            : "Waiting for agents to connect..."}
+                            ? "ລອງໃຊ້ຄຳຄົ້ນຫາອື່ນ"
+                            : "ກະລຸນາລໍຖ້າການເຊື່ອມຕໍ່ຈາກ Agent..."}
                     </p>
                 </div>
             ) : (
@@ -262,17 +268,17 @@ export default function ComputersPage() {
                                 </div>
                             ) : (
                                 <p className="text-xs text-muted text-center py-4">
-                                    No data yet
+                                    ຍັງບໍ່ມີຂໍ້ມູນ
                                 </p>
                             )}
 
                             <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
                                 <span className="text-xs text-muted">
-                                    {computer.department || "General"}
+                                    {computer.department || "ທົ່ວໄປ"}
                                 </span>
                                 {computer.unresolvedAlerts > 0 && (
                                     <span className="text-xs bg-red-500/15 text-red-400 px-2 py-0.5 rounded-full">
-                                        {computer.unresolvedAlerts} alerts
+                                        {computer.unresolvedAlerts} ການແຈ້ງເຕືອນ
                                     </span>
                                 )}
                             </div>
@@ -285,7 +291,7 @@ export default function ComputersPage() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between pt-2">
                     <p className="text-sm text-muted">
-                        Page {page} of {totalPages} ({total} total)
+                        ໜ້າ {page} ຈາກ {totalPages} (ທັງໝົດ {total})
                     </p>
                     <div className="flex gap-2">
                         <button
@@ -294,7 +300,7 @@ export default function ComputersPage() {
                             className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
                         >
                             <ChevronLeft className="w-4 h-4" />
-                            Previous
+                            ກ່ອນໜ້າ
                         </button>
                         <button
                             onClick={() =>
@@ -303,7 +309,7 @@ export default function ComputersPage() {
                             disabled={page >= totalPages}
                             className="flex items-center gap-1 px-3 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50 transition-colors disabled:opacity-40"
                         >
-                            Next
+                            ຖັດໄປ
                             <ChevronRight className="w-4 h-4" />
                         </button>
                     </div>

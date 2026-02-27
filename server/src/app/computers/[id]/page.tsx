@@ -39,6 +39,7 @@ import {
     SystemTab,
     UsageTab,
     PrintHistoryTab,
+    ScreenshotsTab,
 } from "./data-tabs";
 
 import { ThresholdsTab } from "./thresholds-tab";
@@ -55,6 +56,7 @@ type TabKey =
     | "system"
     | "usage"
     | "print_history"
+    | "screenshots"
     | "actions"
     | "thresholds";
 
@@ -238,12 +240,12 @@ export default function ComputerDetailPage() {
         return (
             <div className="text-center py-20">
                 <Monitor className="w-16 h-16 text-muted mx-auto mb-4" />
-                <h2 className="text-xl font-semibold">Computer not found</h2>
+                <h2 className="text-xl font-semibold">ບໍ່ພົບຂໍ້ມູນຄອມພິວເຕີ</h2>
                 <Link
                     href="/computers"
                     className="text-accent text-sm mt-2 inline-block"
                 >
-                    Back to computers
+                    ກັບຄືນໄປໜ້າລາຍຊື່ຄອມພິວເຕີ
                 </Link>
             </div>
         );
@@ -281,6 +283,14 @@ export default function ComputerDetailPage() {
                 return <UsageTab report={report} />;
             case "print_history":
                 return <PrintHistoryTab report={report} />;
+            case "screenshots":
+                return (
+                    <ScreenshotsTab
+                        computerId={computer.id}
+                        sendCommand={sendCommand}
+                        actionLoading={actionLoading}
+                    />
+                );
             case "actions":
                 return <ActionsTab computer={computer} />;
             case "thresholds":
@@ -307,8 +317,8 @@ export default function ComputerDetailPage() {
                         <StatusBadge status={computer.status} />
                     </div>
                     <p className="text-muted text-sm mt-1">
-                        {computer.ipAddress} |{" "}
-                        {computer.department || "General"} | Last seen:{" "}
+                        {computer.ipAddress} | {computer.department || "ທົ່ວໄປ"}{" "}
+                        | ເຫັນຫຼ້າສຸດ:{" "}
                         {new Date(computer.lastSeenAt).toLocaleString()}
                     </p>
                     <div className="flex items-center gap-3 mt-2">
@@ -320,7 +330,7 @@ export default function ComputerDetailPage() {
                                     onChange={(e) =>
                                         setLabelValue(e.target.value)
                                     }
-                                    placeholder="Add label/note..."
+                                    placeholder="ເພີ່ມປ້າຍຊື່/ໝາຍເຫດ..."
                                     className="px-3 py-1 text-sm bg-background border border-border rounded"
                                     autoFocus
                                 />
@@ -328,13 +338,13 @@ export default function ComputerDetailPage() {
                                     onClick={saveLabel}
                                     className="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-accent/90"
                                 >
-                                    Save
+                                    ບັນທຶກ
                                 </button>
                                 <button
                                     onClick={() => setEditingLabel(false)}
                                     className="px-3 py-1 text-xs bg-card border border-border rounded hover:bg-border/50"
                                 >
-                                    Cancel
+                                    ຍົກເລີກ
                                 </button>
                             </div>
                         ) : (
@@ -347,7 +357,7 @@ export default function ComputerDetailPage() {
                             >
                                 {computer.label
                                     ? `📝 ${computer.label}`
-                                    : "+ Add label"}
+                                    : "+ ເພີ່ມປ້າຍຊື່"}
                             </button>
                         )}
                         {editingTags ? (
@@ -358,7 +368,7 @@ export default function ComputerDetailPage() {
                                     onChange={(e) =>
                                         setTagsValue(e.target.value)
                                     }
-                                    placeholder="Tags (comma separated)..."
+                                    placeholder="ແທັກ (ຂັ້ນດ້ວຍຈຸດ)..."
                                     className="px-3 py-1 text-sm bg-background border border-border rounded"
                                     autoFocus
                                 />
@@ -366,13 +376,13 @@ export default function ComputerDetailPage() {
                                     onClick={saveTags}
                                     className="px-3 py-1 text-xs bg-accent text-white rounded hover:bg-accent/90"
                                 >
-                                    Save
+                                    ບັນທຶກ
                                 </button>
                                 <button
                                     onClick={() => setEditingTags(false)}
                                     className="px-3 py-1 text-xs bg-card border border-border rounded hover:bg-border/50"
                                 >
-                                    Cancel
+                                    ຍົກເລີກ
                                 </button>
                             </div>
                         ) : (
@@ -385,7 +395,7 @@ export default function ComputerDetailPage() {
                             >
                                 {computer.tags
                                     ? `🏷️ ${computer.tags}`
-                                    : "+ Add tags"}
+                                    : "+ ເພີ່ມແທັກ"}
                             </button>
                         )}
                     </div>
@@ -474,27 +484,36 @@ export default function ComputerDetailPage() {
             {/* Tabs */}
             <div className="flex gap-2 border-b border-border pb-0 overflow-x-auto">
                 {[
-                    { key: "overview", label: "Overview", icon: Monitor },
-                    { key: "processes", label: "Processes", icon: Cpu },
-                    { key: "events", label: "Event Logs", icon: AlertTriangle },
-                    { key: "software", label: "Software", icon: List },
-                    { key: "printers", label: "Printers", icon: Printer },
-                    { key: "licenses", label: "Licenses", icon: KeyRound },
-                    { key: "startup", label: "Startup", icon: Play },
-                    { key: "services", label: "Services", icon: Cog },
-                    { key: "usage", label: "Usage Statistics", icon: Activity },
+                    { key: "overview", label: "ພາບລວມ", icon: Monitor },
+                    { key: "processes", label: "ໂປຣເຊສ", icon: Cpu },
                     {
-                        key: "print_history",
-                        label: "Print History",
-                        icon: History,
-                    },
-                    { key: "system", label: "System", icon: Settings },
-                    {
-                        key: "thresholds",
-                        label: "Thresholds",
+                        key: "events",
+                        label: "ບັນທຶກເຫດການ",
                         icon: AlertTriangle,
                     },
-                    { key: "actions", label: "Remote Actions", icon: Terminal },
+                    { key: "software", label: "ຊອບແວ", icon: List },
+                    { key: "printers", label: "ເຄື່ອງພິມ", icon: Printer },
+                    { key: "licenses", label: "ລິຂະສິດ", icon: KeyRound },
+                    { key: "startup", label: "ໂປຣແກຣມເລີ່ມຕົ້ນ", icon: Play },
+                    { key: "services", label: "ເຊີວິດ", icon: Cog },
+                    { key: "usage", label: "ສະຖິຕິການໃຊ້ງານ", icon: Activity },
+                    {
+                        key: "print_history",
+                        label: "ປະຫວັດການພິມ",
+                        icon: History,
+                    },
+                    { key: "screenshots", label: "ຮູບໜ້າຈໍ", icon: Camera },
+                    { key: "system", label: "ລະບົບ", icon: Settings },
+                    {
+                        key: "thresholds",
+                        label: "ກຳນົດເກນ (Thresholds)",
+                        icon: AlertTriangle,
+                    },
+                    {
+                        key: "actions",
+                        label: "ການສັ່ງການທາງໄກ",
+                        icon: Terminal,
+                    },
                 ].map((t) => (
                     <button
                         key={t.key}

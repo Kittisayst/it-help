@@ -31,7 +31,7 @@ export async function POST(
       );
     }
 
-    const { success, output } = result.data;
+    const { success, output, screenshot } = result.data;
 
     const command = await prisma.command.findUnique({
       where: { id },
@@ -44,16 +44,46 @@ export async function POST(
       );
     }
 
+    // Handle screenshot saving
+    let imagePath: string | null = null;
+    if (success && screenshot && command.action === "screenshot") {
+      try {
+        const fs = await import("fs/promises");
+        const path = await import("path");
+        const crypto = await import("crypto");
+
+        const buffer = Buffer.from(screenshot, "base64");
+        const filename = `${command.computerId}_${Date.now()}_${crypto.randomBytes(4).toString("hex")}.png`;
+        const uploadDir = path.join(process.cwd(), "public", "screenshots");
+
+        await fs.mkdir(uploadDir, { recursive: true });
+        await fs.writeFile(path.join(uploadDir, filename), buffer);
+
+        imagePath = `/screenshots/${filename}`;
+
+        // Create screenshot record
+        await prisma.screenshot.create({
+          data: {
+            computerId: command.computerId,
+            imagePath: imagePath,
+          },
+        });
+      } catch (e) {
+        console.error("Screenshot saving failed:", e);
+      }
+    }
+
     const updated = await prisma.command.update({
       where: { id },
       data: {
         status: success ? "completed" : "failed",
-        result: output ? output.substring(0, 5000) : null,
+        result: imagePath || (output ? output.substring(0, 5000) : null),
         executedAt: new Date(),
       },
     });
 
     emitToComputer(command.computerId, "command:result", updated);
+    if (imagePath) emitToComputer(command.computerId, "screenshot:new", { computerId: command.computerId, imagePath });
 
     return NextResponse.json({ success: true });
   } catch (error) {

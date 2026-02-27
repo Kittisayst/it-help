@@ -16,13 +16,13 @@ import {
 import { useSession, signOut } from "next-auth/react";
 
 const navItems = [
-    { href: "/", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/computers", label: "Computers", icon: Monitor },
-    { href: "/alerts", label: "Alerts", icon: AlertTriangle },
-    { href: "/messages", label: "Messages", icon: MessageSquare },
-    { href: "/programs", label: "Programs", icon: AppWindow },
-    { href: "/management", label: "Management", icon: LayoutGrid },
-    { href: "/audit-logs", label: "Audit Log", icon: FileText },
+    { href: "/", label: "ແຜງຄວບຄຸມ", icon: LayoutDashboard },
+    { href: "/computers", label: "ຄອມພິວເຕີ", icon: Monitor },
+    { href: "/alerts", label: "ການແຈ້ງເຕືອນ", icon: AlertTriangle },
+    { href: "/messages", label: "ຂໍ້ຄວາມ", icon: MessageSquare },
+    { href: "/programs", label: "ໂປຣແກຣມ", icon: AppWindow },
+    { href: "/management", label: "ການຈັດການ", icon: LayoutGrid },
+    { href: "/audit-logs", label: "ປະຫວັດການເຄື່ອນໄຫວ", icon: FileText },
 ];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -40,7 +40,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                         <h1 className="text-lg font-bold text-foreground">
                             IT Monitor
                         </h1>
-                        <p className="text-xs text-muted">College Network</p>
+                        <p className="text-xs text-muted">ເຄືອຂ່າຍວິທະຍາໄລ</p>
                     </div>
                 </div>
             </div>

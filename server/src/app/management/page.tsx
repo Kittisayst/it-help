@@ -50,10 +50,10 @@ export default function GroupsManagementPage() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <LayoutGrid className="w-6 h-6 text-accent" />
-                        Asset Management
+                        ການຈັດການຊັບສິນ (Asset Management)
                     </h1>
                     <p className="text-muted text-sm mt-1">
-                        Manage departments, groups, and global tags
+                        ບໍລິຫານຈັດການພະແນກ, ກຸ່ມ ແລະ ແທັກສາກົນ
                     </p>
                 </div>
             </div>
@@ -64,10 +64,10 @@ export default function GroupsManagementPage() {
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="font-semibold flex items-center gap-2">
                             <Monitor className="w-4 h-4 text-emerald-400" />
-                            Departments
+                            ພະແນກ (Departments)
                         </h3>
                         <span className="text-xs text-muted">
-                            {departments.length} active
+                            {departments.length} ທີ່ໃຊ້ງານຢູ່
                         </span>
                     </div>
 
@@ -76,7 +76,7 @@ export default function GroupsManagementPage() {
                             <Loader2 className="w-6 h-6 animate-spin mx-auto py-10" />
                         ) : departments.length === 0 ? (
                             <p className="text-sm text-muted italic text-center py-4">
-                                No departments found
+                                ບໍ່ພົບຂໍ້ມູນພະແນກ
                             </p>
                         ) : (
                             departments.map((dept) => (
@@ -95,7 +95,7 @@ export default function GroupsManagementPage() {
                                                         c.department === dept,
                                                 ).length
                                             }{" "}
-                                            assets
+                                            ອຸປະກອນ
                                         </span>
                                         <ChevronRight className="w-4 h-4 text-muted group-hover:text-accent transition-colors" />
                                     </div>
@@ -106,8 +106,9 @@ export default function GroupsManagementPage() {
 
                     <div className="pt-4 border-t border-border">
                         <p className="text-xs text-muted mb-3">
-                            Note: Departments are automatically created when
-                            reported by an agent or assigned to a computer.
+                            ໝາຍເຫດ:
+                            ພະແນກຈະຖືກສ້າງຂຶ້ນໂດຍອັດຕະໂນມັດເມື່ອມີການລາຍງານຈາກ
+                            Agent ຫຼື ຖືກກຳນົດໃຫ້ຄອມພິວເຕີ.
                         </p>
                     </div>
                 </div>
@@ -117,10 +118,10 @@ export default function GroupsManagementPage() {
                     <div className="flex items-center justify-between mb-6">
                         <h3 className="font-semibold flex items-center gap-2">
                             <Tag className="w-4 h-4 text-accent" />
-                            System Tags
+                            ແທັກລະບົບ (System Tags)
                         </h3>
                         <span className="text-xs text-muted">
-                            {allTags.length} unique tags
+                            {allTags.length} ແທັກທີ່ບໍ່ຊ້ຳກັນ
                         </span>
                     </div>
 
@@ -129,7 +130,7 @@ export default function GroupsManagementPage() {
                             <Loader2 className="w-6 h-6 animate-spin mx-auto py-10" />
                         ) : allTags.length === 0 ? (
                             <p className="text-sm text-muted italic text-center py-4 w-full">
-                                No tags assigned to assets
+                                ຍັງບໍ່ມີການກຳນົດແທັກໃຫ້ອຸປະກອນ
                             </p>
                         ) : (
                             allTags.map((tag) => (
@@ -157,14 +158,13 @@ export default function GroupsManagementPage() {
 
                     <div className="pt-4 border-t border-border">
                         <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-4">
-                            How to manage
+                            ວິທີການຈັດການ
                         </h4>
                         <p className="text-xs text-muted leading-relaxed">
-                            Tags are assigned per asset in the Computer Detail
-                            page. They allow you to categorize and filter assets
-                            (e.g., "Critical", "VIP", "Workstation"). Use the
-                            filter on the Computers list page to search by these
-                            tags.
+                            ແທັກຖືກກຳນົດໃຫ້ແຕ່ລະອຸປະກອນໃນໜ້າລາຍລະອຽດຄອມພິວເຕີ.
+                            ພວກມັນຊ່ວຍໃຫ້ທ່ານສາມາດຈັດປະເພດ ແລະ ກັ່ນຕອງອຸປະກອນ
+                            (ເຊັ່ນ: "Critical", "VIP", "Workstation").
+                            ໃຊ້ຕົວຊີ້ບອກໃນໜ້າລາຍຊື່ຄອມພິວເຕີເພື່ອຄົ້ນຫາຕາມແທັກເຫຼົ່ານີ້.
                         </p>
                     </div>
                 </div>

@@ -117,9 +117,9 @@ export default function DashboardPage() {
         return (
             <div className="text-center py-20">
                 <Monitor className="w-16 h-16 text-muted mx-auto mb-4" />
-                <h2 className="text-xl font-semibold">No Data Available</h2>
+                <h2 className="text-xl font-semibold">ບໍ່ມີຂໍ້ມູນ</h2>
                 <p className="text-muted mt-2">
-                    Waiting for agents to connect...
+                    ກະລຸນາລໍຖ້າການເຊື່ອມຕໍ່ຈາກ Agent...
                 </p>
             </div>
         );
@@ -128,35 +128,35 @@ export default function DashboardPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+                <h1 className="text-2xl font-bold">ພາບລວມແຜງຄວບຄຸມ</h1>
                 <p className="text-muted text-sm mt-1">
-                    Real-time monitoring of all computers in the network
+                    ການຕິດຕາມຄອມພິວເຕີທັງໝົດໃນເຄືອຂ່າຍແບບລຽບທາມ (Real-time)
                 </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard
-                    title="Total Computers"
+                    title="ຄອມພິວເຕີທັງໝົດ"
                     value={data.totalComputers}
                     icon={Monitor}
                     color="text-accent"
-                    subtitle={`${data.online} online`}
+                    subtitle={`${data.online} ອອນລາຍ`}
                 />
                 <MetricCard
-                    title="Online"
+                    title="ອອນລາຍ (Online)"
                     value={data.online}
                     icon={Wifi}
                     color="text-emerald-400"
-                    subtitle={`${data.warning} warning`}
+                    subtitle={`${data.warning} ຄຳເຕືອນ`}
                 />
                 <MetricCard
-                    title="Offline"
+                    title="ອັອຟລາຍ (Offline)"
                     value={data.offline}
                     icon={WifiOff}
                     color="text-red-400"
                 />
                 <MetricCard
-                    title="Active Alerts"
+                    title="ການແຈ້ງເຕືອນທີ່ຍັງບໍ່ທັນແກ້ໄຂ"
                     value={data.unresolvedAlerts}
                     icon={AlertTriangle}
                     color={
@@ -169,7 +169,7 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <MetricCard
-                    title="Avg CPU Usage"
+                    title="ການໃຊ້ CPU ສະເລ່ຍ"
                     value={`${data.avgCpu.toFixed(1)}%`}
                     icon={Cpu}
                     color={
@@ -181,7 +181,7 @@ export default function DashboardPage() {
                     }
                 />
                 <MetricCard
-                    title="Avg RAM Usage"
+                    title="ການໃຊ້ RAM ສະເລ່ຍ"
                     value={`${data.avgRam.toFixed(1)}%`}
                     icon={MemoryStick}
                     color={
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                     }
                 />
                 <MetricCard
-                    title="Avg Disk Usage"
+                    title="ການໃຊ້ Disk ສະເລ່ຍ"
                     value={`${data.avgDisk.toFixed(1)}%`}
                     icon={HardDrive}
                     color={
@@ -207,10 +207,12 @@ export default function DashboardPage() {
             </div>
 
             <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="text-lg font-semibold mb-4">Recent Alerts</h2>
+                <h2 className="text-lg font-semibold mb-4">
+                    ການແຈ້ງເຕືອນຫຼ້າສຸດ
+                </h2>
                 {data.recentAlerts.length === 0 ? (
                     <p className="text-muted text-sm py-4 text-center">
-                        No active alerts
+                        ບໍ່ມີການແຈ້ງເຕືອນໃນເວລານີ້
                     </p>
                 ) : (
                     <div className="space-y-3">

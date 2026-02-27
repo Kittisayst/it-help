@@ -52,13 +52,13 @@ export default function AuditLogsPage() {
         return (
             <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                 <p className="text-red-400 font-medium">
-                    Failed to load audit logs
+                    ບໍ່ສາມາດໂຫຼດຂໍ້ມູນບັນທຶກການກວດສອບໄດ້
                 </p>
                 <button
                     onClick={() => window.location.reload()}
                     className="mt-4 px-4 py-2 bg-card border border-border rounded-lg text-sm hover:bg-border/50"
                 >
-                    Retry
+                    ລອງໃໝ່
                 </button>
             </div>
         );
@@ -70,10 +70,10 @@ export default function AuditLogsPage() {
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-2">
                         <History className="w-6 h-6 text-accent" />
-                        Audit Logs
+                        ບັນທຶກການກວດສອບ (Audit Logs)
                     </h1>
                     <p className="text-muted text-sm mt-1">
-                        Track administrative actions and system changes
+                        ຕິດຕາມການດຳເນີນການດ້ານບໍລິຫານ ແລະ ການປ່ຽນແປງຂອງລະບົບ
                     </p>
                 </div>
             </div>
@@ -84,7 +84,7 @@ export default function AuditLogsPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                         <input
                             type="text"
-                            placeholder="Search by action, user, or hostname..."
+                            placeholder="ຄົ້ນຫາຕາມການດຳເນີນການ, ຜູ້ໃຊ້, ຫຼື ຊື່ເຄື່ອງ..."
                             value={search}
                             onChange={(e) => {
                                 setSearch(e.target.value);
@@ -100,19 +100,19 @@ export default function AuditLogsPage() {
                         <thead>
                             <tr className="bg-muted/50 border-b border-border text-muted">
                                 <th className="text-left py-3 px-6 font-medium">
-                                    Time
+                                    ເວລາ
                                 </th>
                                 <th className="text-left py-3 px-6 font-medium">
-                                    User
+                                    ຜູ້ໃຊ້
                                 </th>
                                 <th className="text-left py-3 px-6 font-medium">
-                                    Action
+                                    ການດຳເນີນການ
                                 </th>
                                 <th className="text-left py-3 px-6 font-medium">
-                                    Asset
+                                    ອຸປະກອນ
                                 </th>
                                 <th className="text-left py-3 px-6 font-medium">
-                                    Details
+                                    ລາຍລະອຽດ
                                 </th>
                             </tr>
                         </thead>
@@ -132,7 +132,7 @@ export default function AuditLogsPage() {
                                         colSpan={5}
                                         className="py-20 text-center text-muted"
                                     >
-                                        No logs found matching your search
+                                        ບໍ່ພົບຂໍ້ມູນບັນທຶກທີ່ກົງກັບການຄົ້ນຫາຂອງທ່ານ
                                     </td>
                                 </tr>
                             ) : (
@@ -152,7 +152,7 @@ export default function AuditLogsPage() {
                                         <td className="py-4 px-6 font-medium">
                                             <div className="flex items-center gap-2">
                                                 <User className="w-3.5 h-3.5 text-muted" />
-                                                {log.user?.name || "System"}
+                                                {log.user?.name || "ລະບົບ"}
                                             </div>
                                         </td>
                                         <td className="py-4 px-6">
@@ -188,8 +188,9 @@ export default function AuditLogsPage() {
                 {totalPages > 1 && (
                     <div className="p-4 border-t border-border flex items-center justify-between">
                         <p className="text-xs text-muted">
-                            Showing {(page - 1) * 50 + 1} to{" "}
-                            {Math.min(page * 50, total)} of {total} entries
+                            ສະແດງ {(page - 1) * 50 + 1} ຫາ{" "}
+                            {Math.min(page * 50, total)} ຈາກທັງໝົດ {total}{" "}
+                            ລາຍການ
                         </p>
                         <div className="flex gap-2">
                             <button

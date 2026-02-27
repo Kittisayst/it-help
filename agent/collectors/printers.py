@@ -10,18 +10,21 @@ def collect_printers():
     printers = []
     default_printer = ""
 
+    # Try win32print first
     try:
         import win32print
-
-        default_printer = win32print.GetDefaultPrinter()
-
-        for printer in win32print.EnumPrinters(
-            win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
-        ):
+        try:
+            default_printer = win32print.GetDefaultPrinter()
+        except Exception:
+            default_printer = ""
+        
+        enum_flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+        
+        # Collect using EnumPrinters
+        for printer in win32print.EnumPrinters(enum_flags):
             flags, desc, name, comment = printer
             is_network = bool(flags & win32print.PRINTER_ENUM_CONNECTIONS)
 
-            # Get printer status
             try:
                 handle = win32print.OpenPrinter(name)
                 info = win32print.GetPrinter(handle, 2)
@@ -61,10 +64,27 @@ def collect_printers():
                 "port": port,
                 "driver": driver,
             })
-    except ImportError:
-        pass
     except Exception:
         pass
+
+    # Fallback to WMI if no printers found
+    if not printers:
+        try:
+            import wmi
+            c = wmi.WMI()
+            for printer in c.Win32_Printer():
+                printers.append({
+                    "name": printer.Name,
+                    "is_default": printer.Default if hasattr(printer, 'Default') else False,
+                    "is_network": printer.Network if hasattr(printer, 'Network') else False,
+                    "status": printer.Status if hasattr(printer, 'Status') else "Ready",
+                    "port": printer.PortName if hasattr(printer, 'PortName') else "Unknown",
+                    "driver": printer.DriverName if hasattr(printer, 'DriverName') else "Unknown",
+                })
+                if printer.Default and not default_printer:
+                    default_printer = printer.Name
+        except Exception:
+            pass
 
     return {
         "printers": printers,
@@ -77,7 +97,7 @@ def collect_print_history():
     Requires 'Microsoft-Windows-PrintService/Operational' to be enabled.
     """
     if sys.platform != "win32":
-        return []
+        return {"print_history": []}
         
     try:
         import win32evtlog
@@ -92,7 +112,7 @@ def collect_print_history():
             win32evtlog.CloseEventLog(handle)
         except Exception:
             # Log might be disabled or inaccessible
-            return []
+            return {"print_history": []}
 
         # Query recent events (ID 307 - Document printed)
         # We limit to last 50 events for efficiency
@@ -133,6 +153,6 @@ def collect_print_history():
                 "timestamp": system_time
             })
             
-        return print_history
+        return {"print_history": print_history}
     except Exception:
-        return []
+        return {"print_history": []}

@@ -38,11 +38,24 @@ model Computer {
   alerts         Alert[]
   messages       Message[]
   commands       Command[]
+  screenshots    Screenshot[]
   serverMessages ServerMessage[]
   thresholds     AlertThreshold[]
   auditLogs      AuditLog[]
 
   @@map("computer")
+}
+
+model Screenshot {
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  computerId  String   @db.VarChar(30)
+  computer    Computer @relation(fields: [computerId], references: [id], onDelete: Cascade)
+
+  imagePath   String   @db.VarChar(500)
+  createdAt   DateTime @default(now())
+
+  @@index([computerId, createdAt])
+  @@map("screenshot")
 }
 
 model Report {
