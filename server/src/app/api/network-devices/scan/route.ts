@@ -1,52 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
+import localDevices from "local-devices";
 
 interface DiscoveredDevice {
   ipAddress: string;
   macAddress: string | null;
   vendor: string | null;
   status: "online";
-}
-
-// Parse ARP table output (Windows: arp -a)
-function parseArpTable(output: string): DiscoveredDevice[] {
-  const devices: DiscoveredDevice[] = [];
-  const lines = output.split("\n");
-
-  for (const line of lines) {
-    // Match lines like: 192.168.1.1     aa-bb-cc-dd-ee-ff     dynamic
-    const match = line
-      .trim()
-      .match(
-        /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+([\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2})\s+(\w+)/
-      );
-
-    if (match) {
-      const ip = match[1];
-      const mac = match[2].replace(/-/g, ":").toUpperCase();
-
-      // Skip broadcast and multicast addresses
-      if (
-        mac === "FF:FF:FF:FF:FF:FF" ||
-        ip.endsWith(".255") ||
-        ip === "255.255.255.255"
-      ) {
-        continue;
-      }
-
-      devices.push({
-        ipAddress: ip,
-        macAddress: mac,
-        vendor: lookupVendor(mac),
-        status: "online",
-      });
-    }
-  }
-
-  return devices;
 }
 
 // Simple MAC vendor lookup based on OUI prefix
@@ -666,29 +625,26 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const subnet = body.subnet; // e.g. "192.168.1"
 
-    // Step 1: Ping sweep to populate ARP table
+    // Use local-devices to scan network
+    let rawDevices;
+    
     if (subnet) {
-      // Ping a range of IPs to populate ARP cache
-      const pingPromises = [];
-      for (let i = 1; i <= 254; i++) {
-        const ip = `${subnet}.${i}`;
-        pingPromises.push(
-          execAsync(`ping -n 1 -w 300 ${ip}`, { timeout: 5000 }).catch(
-            () => null
-          )
-        );
-      }
-      // Run in batches of 50 to avoid too many concurrent processes
-      for (let i = 0; i < pingPromises.length; i += 50) {
-        await Promise.all(pingPromises.slice(i, i + 50));
-      }
+      // Scan specific subnet
+      rawDevices = await localDevices({ address: `${subnet}.0` });
+    } else {
+      // Scan all local networks
+      rawDevices = await localDevices();
     }
 
-    // Step 2: Read ARP table
-    const { stdout } = await execAsync("arp -a", { timeout: 10000 });
-    const discovered = parseArpTable(stdout);
+    // Transform to our format
+    const discovered: DiscoveredDevice[] = rawDevices.map((device: any) => ({
+      ipAddress: device.ip,
+      macAddress: device.mac ? device.mac.toUpperCase() : null,
+      vendor: device.name || (device.mac ? lookupVendor(device.mac.toUpperCase()) : null),
+      status: "online" as const,
+    }));
 
-    // Filter by subnet if specified
+    // Filter by subnet if specified (additional filtering)
     const filtered = subnet
       ? discovered.filter((d) => d.ipAddress.startsWith(subnet + "."))
       : discovered;
