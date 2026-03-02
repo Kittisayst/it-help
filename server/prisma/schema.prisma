@@ -214,6 +214,60 @@ model AlertThreshold {
   @@map("alertthreshold")
 }
 
+model NetworkDevice {
+  id              String   @id @default(cuid()) @db.VarChar(30)
+  name            String   @db.VarChar(191)
+  ipAddress       String   @db.VarChar(45)
+  macAddress      String?  @db.VarChar(50)
+  type            String   @db.VarChar(50)   // router, access_point, switch, pc, laptop, mobile, printer, server, other
+  brand           String?  @db.VarChar(100)
+  model           String?  @db.VarChar(100)
+  location        String?  @db.VarChar(255)
+  status          String   @default("online") @db.VarChar(20) // online, offline, unknown
+  notes           String?  @db.Text
+  autoDiscovered  Boolean  @default(false)
+  vendor          String?  @db.VarChar(255)
+  lastSeenAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([ipAddress])
+  @@map("network_device")
+}
+
+model NetworkScanConfig {
+  id        String   @id @default(cuid()) @db.VarChar(30)
+  subnet    String   @db.VarChar(45)  // e.g. "192.168.1"
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([subnet])
+  @@map("network_scan_config")
+}
+
+model DiscoveredDevice {
+  id            String   @id @default(cuid()) @db.VarChar(30)
+  ipAddress     String   @db.VarChar(45)
+  macAddress    String?  @db.VarChar(50)
+  vendor        String?  @db.VarChar(255)
+  guessedType   String   @db.VarChar(50)
+  status        String   @default("online") @db.VarChar(20)
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+  scanCount     Int      @default(1)
+  isSaved       Boolean  @default(false)  // true if user saved to NetworkDevice
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([ipAddress, macAddress])
+  @@index([lastSeenAt])
+  @@index([isSaved])
+  @@map("discovered_device")
+}
+
 model AuditLog {
   id          String    @id @default(cuid()) @db.VarChar(30)
   userId      String?   @db.VarChar(30)

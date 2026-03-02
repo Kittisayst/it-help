@@ -1,0 +1,759 @@
+import { NextRequest, NextResponse } from "next/server";
+import { exec } from "child_process";
+import { promisify } from "util";
+
+const execAsync = promisify(exec);
+
+interface DiscoveredDevice {
+  ipAddress: string;
+  macAddress: string | null;
+  vendor: string | null;
+  status: "online";
+}
+
+// Parse ARP table output (Windows: arp -a)
+function parseArpTable(output: string): DiscoveredDevice[] {
+  const devices: DiscoveredDevice[] = [];
+  const lines = output.split("\n");
+
+  for (const line of lines) {
+    // Match lines like: 192.168.1.1     aa-bb-cc-dd-ee-ff     dynamic
+    const match = line
+      .trim()
+      .match(
+        /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s+([\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2}[:-][\da-fA-F]{2})\s+(\w+)/
+      );
+
+    if (match) {
+      const ip = match[1];
+      const mac = match[2].replace(/-/g, ":").toUpperCase();
+
+      // Skip broadcast and multicast addresses
+      if (
+        mac === "FF:FF:FF:FF:FF:FF" ||
+        ip.endsWith(".255") ||
+        ip === "255.255.255.255"
+      ) {
+        continue;
+      }
+
+      devices.push({
+        ipAddress: ip,
+        macAddress: mac,
+        vendor: lookupVendor(mac),
+        status: "online",
+      });
+    }
+  }
+
+  return devices;
+}
+
+// Simple MAC vendor lookup based on OUI prefix
+function lookupVendor(mac: string): string | null {
+  const prefix = mac.substring(0, 8).toUpperCase();
+  const vendors: Record<string, string> = {
+    "00:1A:2B": "Ayecom Technology",
+    "00:1B:44": "SanDisk",
+    "00:1F:1F": "Edimax",
+    "00:50:56": "VMware",
+    "00:0C:29": "VMware",
+    "00:15:5D": "Microsoft Hyper-V",
+    "00:1C:42": "Parallels",
+    "08:00:27": "VirtualBox",
+    "0A:00:27": "VirtualBox",
+    "00:16:3E": "Xen",
+    "00:1A:11": "Google",
+    "00:1E:C2": "Apple",
+    "00:25:00": "Apple",
+    "00:26:BB": "Apple",
+    "3C:15:C2": "Apple",
+    "AC:DE:48": "Apple",
+    "F0:18:98": "Apple",
+    "14:7D:DA": "Apple",
+    "A4:83:E7": "Apple",
+    "00:17:88": "Philips Hue",
+    "B8:27:EB": "Raspberry Pi",
+    "DC:A6:32": "Raspberry Pi",
+    "E4:5F:01": "Raspberry Pi",
+    "28:CD:C1": "Raspberry Pi",
+    "00:0E:C6": "ASIX Electronics",
+    "00:E0:4C": "Realtek",
+    "00:24:D7": "Intel",
+    "00:1B:21": "Intel",
+    "00:1E:67": "Intel",
+    "00:22:FB": "Intel",
+    "3C:97:0E": "Intel",
+    "68:05:CA": "Intel",
+    "8C:EC:4B": "Intel",
+    "A0:36:9F": "Intel",
+    "B4:96:91": "Intel",
+    "F8:63:3F": "Intel",
+    "00:13:72": "Dell",
+    "00:14:22": "Dell",
+    "00:1A:A0": "Dell",
+    "00:1E:4F": "Dell",
+    "00:21:70": "Dell",
+    "00:24:E8": "Dell",
+    "00:26:B9": "Dell",
+    "14:FE:B5": "Dell",
+    "18:03:73": "Dell",
+    "34:17:EB": "Dell",
+    "B0:83:FE": "Dell",
+    "00:1C:C4": "Hewlett-Packard",
+    "00:21:5A": "Hewlett-Packard",
+    "00:25:B3": "Hewlett-Packard",
+    "28:80:23": "Hewlett-Packard",
+    "30:8D:99": "Hewlett-Packard",
+    "00:0D:56": "ASUS",
+    "00:1A:92": "ASUS",
+    "00:1E:8C": "ASUS",
+    "00:22:15": "ASUS",
+    "00:26:18": "ASUS",
+    "1C:87:2C": "ASUS",
+    "2C:56:DC": "ASUS",
+    "60:45:CB": "ASUS",
+    "00:0F:66": "Cisco",
+    "00:12:43": "Cisco",
+    "00:13:7F": "Cisco",
+    "00:15:63": "Cisco",
+    "00:17:0F": "Cisco",
+    "00:18:B9": "Cisco",
+    "00:1A:A1": "Cisco",
+    "00:1B:0D": "Cisco",
+    "00:21:D7": "Cisco",
+    "00:22:0D": "Cisco",
+    "00:23:04": "Cisco",
+    "00:0C:42": "MikroTik",
+    "00:0C:43": "MikroTik",
+    "48:8F:5A": "MikroTik",
+    "74:4D:28": "MikroTik",
+    "6C:3B:6B": "MikroTik",
+    "2C:C8:1B": "MikroTik",
+    "D4:01:C3": "MikroTik",
+    "E4:8D:8C": "MikroTik",
+    "B8:69:F4": "MikroTik",
+    "C4:AD:34": "MikroTik",
+    "CC:2D:E0": "MikroTik",
+    "00:0B:6B": "Netgear",
+    "00:14:6C": "Netgear",
+    "00:1E:2A": "Netgear",
+    "00:1F:33": "Netgear",
+    "00:22:3F": "Netgear",
+    "00:24:B2": "Netgear",
+    "00:26:F2": "Netgear",
+    "20:4E:7F": "Netgear",
+    "2C:B0:5D": "Netgear",
+    "C0:FF:D4": "Netgear",
+    "54:B8:0A": "Netgear",
+    "00:19:5B": "D-Link",
+    "00:1B:11": "D-Link",
+    "00:1C:F0": "D-Link",
+    "00:1E:58": "D-Link",
+    "00:21:91": "D-Link",
+    "00:22:B0": "D-Link",
+    "00:24:01": "D-Link",
+    "00:26:5A": "D-Link",
+    "1C:7E:E5": "D-Link",
+    "C8:BE:19": "D-Link",
+    "00:1D:0F": "TP-Link",
+    "00:23:CD": "TP-Link",
+    "00:27:19": "TP-Link",
+    "14:CF:92": "TP-Link",
+    "14:CC:20": "TP-Link",
+    "30:B5:C2": "TP-Link",
+    "50:C7:BF": "TP-Link",
+    "54:C8:0F": "TP-Link",
+    "60:E3:27": "TP-Link",
+    "64:70:02": "TP-Link",
+    "70:4F:57": "TP-Link",
+    "90:F6:52": "TP-Link",
+    "94:0C:6D": "TP-Link",
+    "A0:F3:C1": "TP-Link",
+    "AC:84:C6": "TP-Link",
+    "B0:4E:26": "TP-Link",
+    "B0:95:75": "TP-Link",
+    "C0:25:E9": "TP-Link",
+    "C0:4A:00": "TP-Link",
+    "D4:6E:0E": "TP-Link",
+    "D8:07:B6": "TP-Link",
+    "E8:94:F6": "TP-Link",
+    "EC:08:6B": "TP-Link",
+    "F4:F2:6D": "TP-Link",
+    "F8:D1:11": "TP-Link",
+    "00:0A:EB": "TP-Link",
+    "00:1D:7E": "Linksys",
+    "00:22:6B": "Linksys",
+    "00:23:69": "Linksys",
+    "00:25:9C": "Linksys",
+    "20:AA:4B": "Linksys",
+    "58:6D:8F": "Linksys",
+    "C0:56:27": "Linksys",
+    "30:23:03": "Belkin",
+    "94:10:3E": "Belkin",
+    "EC:1A:59": "Belkin",
+    "00:1D:D8": "Hikvision",
+    "28:57:BE": "Hikvision",
+    "44:19:B6": "Hikvision",
+    "54:C4:15": "Hikvision",
+    "A4:14:37": "Hikvision",
+    "C0:56:E3": "Hikvision",
+    "4C:BD:8F": "Hikvision",
+    "C4:2F:90": "Hikvision",
+    "BC:AD:28": "Hikvision",
+    "80:3F:5D": "Dahua",
+    "3C:EF:8C": "Dahua",
+    "E0:50:8B": "Dahua",
+    "A0:BD:1D": "Dahua",
+    "40:F4:FD": "Dahua",
+    "A8:15:4D": "Samsung",
+    "00:21:19": "Samsung",
+    "08:08:C2": "Samsung",
+    "50:01:BB": "Samsung",
+    "6C:F3:73": "Samsung",
+    "84:25:DB": "Samsung",
+    "88:32:9B": "Samsung",
+    "BC:20:A4": "Samsung",
+    "C4:73:1E": "Samsung",
+    "D0:22:BE": "Samsung",
+    "E4:7C:F9": "Samsung",
+    "F8:04:2E": "Samsung",
+    "D0:03:4B": "Xiaomi",
+    "0C:1D:AF": "Xiaomi",
+    "10:2A:B3": "Xiaomi",
+    "14:F6:5A": "Xiaomi",
+    "18:59:36": "Xiaomi",
+    "20:34:FB": "Xiaomi",
+    "28:6C:07": "Xiaomi",
+    "34:CE:00": "Xiaomi",
+    "38:A4:ED": "Xiaomi",
+    "4C:49:E3": "Xiaomi",
+    "50:64:2B": "Xiaomi",
+    "58:44:98": "Xiaomi",
+    "64:CC:2E": "Xiaomi",
+    "7C:1D:D9": "Xiaomi",
+    "84:F3:EB": "Xiaomi",
+    "8C:DE:F9": "Xiaomi",
+    "98:FA:E3": "Xiaomi",
+    "AC:C1:EE": "Xiaomi",
+    "B0:E2:35": "Xiaomi",
+    "FC:64:BA": "Xiaomi",
+    "20:5E:F7": "Huawei",
+    "00:E0:FC": "Huawei",
+    "00:25:9E": "Huawei",
+    "00:1E:10": "Huawei",
+    "04:C0:6F": "Huawei",
+    "0C:37:DC": "Huawei",
+    "10:44:00": "Huawei",
+    "20:A6:80": "Huawei",
+    "24:09:95": "Huawei",
+    "28:3C:E4": "Huawei",
+    "30:D1:7E": "Huawei",
+    "34:CD:BE": "Huawei",
+    "48:00:31": "Huawei",
+    "48:46:FB": "Huawei",
+    "4C:8B:EF": "Huawei",
+    "54:A5:1B": "Huawei",
+    "58:60:5F": "Huawei",
+    "5C:7D:5E": "Huawei",
+    "70:7B:E8": "Huawei",
+    "78:D7:52": "Huawei",
+    "80:FB:06": "Huawei",
+    "88:53:D4": "Huawei",
+    "AC:E2:15": "Huawei",
+    "B4:15:13": "Huawei",
+    "C8:D1:5E": "Huawei",
+    "D4:6E:5C": "Huawei",
+    "E0:24:7F": "Huawei",
+    "E8:CD:2D": "Huawei",
+    "F4:4C:7F": "Huawei",
+    "F8:01:13": "Huawei",
+    "F8:4A:BF": "Huawei",
+    "00:04:4B": "NVIDIA",
+    "00:90:FB": "Portwell",
+    "B4:2E:99": "Gree Electric",
+    "00:1A:79": "Ubiquiti",
+    "04:18:D6": "Ubiquiti",
+    "18:E8:29": "Ubiquiti",
+    "24:A4:3C": "Ubiquiti",
+    "44:D9:E7": "Ubiquiti",
+    "68:72:51": "Ubiquiti",
+    "70:A7:41": "Ubiquiti",
+    "74:83:C2": "Ubiquiti",
+    "78:8A:20": "Ubiquiti",
+    "80:2A:A8": "Ubiquiti",
+    "B4:FB:E4": "Ubiquiti",
+    "DC:9F:DB": "Ubiquiti",
+    "E0:63:DA": "Ubiquiti",
+    "F0:9F:C2": "Ubiquiti",
+    "FC:EC:DA": "Ubiquiti",
+    "24:5A:4C": "Ubiquiti",
+    "00:02:6F": "Senao/EnGenius",
+    "00:26:60": "EnGenius",
+    "08:10:79": "Aruba Networks",
+    "00:0B:86": "Aruba Networks",
+    "00:1A:1E": "Aruba Networks",
+    "00:24:6C": "Aruba Networks",
+    "20:4C:03": "Aruba Networks",
+    "24:DE:C6": "Aruba Networks",
+    "40:E3:D6": "Aruba Networks",
+    "6C:F3:7F": "Aruba Networks",
+    "94:B4:0F": "Aruba Networks",
+    "D8:C7:C8": "Aruba Networks",
+    "00:11:32": "Synology",
+    "00:1D:09": "Dell Sonicwall",
+    "00:17:C5": "SonicWALL",
+    "00:06:B1": "Sonicwall",
+    "00:60:E9": "Fortinet",
+    "00:09:0F": "Fortinet",
+    "08:5B:0E": "Fortinet",
+    "70:4C:A5": "Fortinet",
+    "90:6C:AC": "Fortinet",
+    "B4:A9:FC": "Fortinet",
+    "E8:1C:BA": "Fortinet",
+    "00:1A:8C": "Sophos",
+    "00:03:93": "Apple",
+    "00:05:02": "Apple",
+    "00:0A:27": "Apple",
+    "00:0A:95": "Apple",
+    "00:0D:93": "Apple",
+    "00:10:FA": "Apple",
+    "00:11:24": "Apple",
+    "00:14:51": "Apple",
+    "00:16:CB": "Apple",
+    "00:17:F2": "Apple",
+    "00:19:E3": "Apple",
+    "00:1B:63": "Apple",
+    "00:1D:4F": "Apple",
+    "00:1F:5B": "Apple",
+    "00:1F:F3": "Apple",
+    "00:21:E9": "Apple",
+    "00:22:41": "Apple",
+    "00:23:12": "Apple",
+    "00:23:32": "Apple",
+    "00:23:6C": "Apple",
+    "00:23:DF": "Apple",
+    "00:24:36": "Apple",
+    "00:25:4B": "Apple",
+    "00:25:BC": "Apple",
+    "00:26:08": "Apple",
+    "00:26:4A": "Apple",
+    "04:0C:CE": "Apple",
+    "04:15:52": "Apple",
+    "04:1E:64": "Apple",
+    "04:26:65": "Apple",
+    "04:48:9A": "Apple",
+    "04:54:53": "Apple",
+    "04:DB:56": "Apple",
+    "04:E5:36": "Apple",
+    "04:F1:3E": "Apple",
+    "04:F7:E4": "Apple",
+    "08:66:98": "Apple",
+    "08:6D:41": "Apple",
+    "10:40:F3": "Apple",
+    "10:9A:DD": "Apple",
+    "10:DD:B1": "Apple",
+    "14:10:9F": "Apple",
+    "18:AF:61": "Apple",
+    "18:E7:F4": "Apple",
+    "1C:36:BB": "Apple",
+    "20:78:F0": "Apple",
+    "24:A0:74": "Apple",
+    "28:37:37": "Apple",
+    "28:CF:E9": "Apple",
+    "2C:BE:08": "Apple",
+    "34:36:3B": "Apple",
+    "34:C0:59": "Apple",
+    "38:53:9C": "Apple",
+    "38:C9:86": "Apple",
+    "3C:07:54": "Apple",
+    "3C:E0:72": "Apple",
+    "40:30:04": "Apple",
+    "40:33:1A": "Apple",
+    "40:A6:D9": "Apple",
+    "40:B3:95": "Apple",
+    "44:D8:84": "Apple",
+    "48:60:BC": "Apple",
+    "48:74:6E": "Apple",
+    "4C:32:75": "Apple",
+    "4C:57:CA": "Apple",
+    "4C:8D:79": "Apple",
+    "50:32:37": "Apple",
+    "54:26:96": "Apple",
+    "54:72:4F": "Apple",
+    "54:9F:13": "Apple",
+    "58:55:CA": "Apple",
+    "58:B0:35": "Apple",
+    "5C:59:48": "Apple",
+    "5C:F5:DA": "Apple",
+    "60:03:08": "Apple",
+    "60:33:4B": "Apple",
+    "60:69:44": "Apple",
+    "60:C5:47": "Apple",
+    "60:F8:1D": "Apple",
+    "60:FA:CD": "Apple",
+    "64:20:0C": "Apple",
+    "64:A3:CB": "Apple",
+    "64:B9:E8": "Apple",
+    "64:E6:82": "Apple",
+    "68:5B:35": "Apple",
+    "68:96:7B": "Apple",
+    "68:A8:6D": "Apple",
+    "68:D9:3C": "Apple",
+    "6C:40:08": "Apple",
+    "6C:70:9F": "Apple",
+    "6C:94:F8": "Apple",
+    "6C:C2:6B": "Apple",
+    "70:11:24": "Apple",
+    "70:56:81": "Apple",
+    "70:73:CB": "Apple",
+    "70:CD:60": "Apple",
+    "70:DE:E2": "Apple",
+    "74:E1:B6": "Apple",
+    "78:31:C1": "Apple",
+    "78:3A:84": "Apple",
+    "78:7E:61": "Apple",
+    "78:CA:39": "Apple",
+    "7C:04:D0": "Apple",
+    "7C:6D:62": "Apple",
+    "7C:D1:C3": "Apple",
+    "80:00:6E": "Apple",
+    "80:49:71": "Apple",
+    "80:92:9F": "Apple",
+    "80:BE:05": "Apple",
+    "80:E6:50": "Apple",
+    "84:29:99": "Apple",
+    "84:38:35": "Apple",
+    "84:78:8B": "Apple",
+    "84:85:06": "Apple",
+    "84:8E:0C": "Apple",
+    "84:FC:FE": "Apple",
+    "88:1F:A1": "Apple",
+    "88:53:95": "Apple",
+    "88:63:DF": "Apple",
+    "88:C6:63": "Apple",
+    "88:CB:87": "Apple",
+    "88:E8:7F": "Apple",
+    "8C:00:6D": "Apple",
+    "8C:29:37": "Apple",
+    "8C:58:77": "Apple",
+    "8C:7C:92": "Apple",
+    "8C:85:90": "Apple",
+    "8C:FA:BA": "Apple",
+    "90:27:E4": "Apple",
+    "90:3C:92": "Apple",
+    "90:72:40": "Apple",
+    "90:84:0D": "Apple",
+    "90:8D:6C": "Apple",
+    "90:B2:1F": "Apple",
+    "90:B9:31": "Apple",
+    "90:FD:61": "Apple",
+    "94:94:26": "Apple",
+    "98:01:A7": "Apple",
+    "98:03:D8": "Apple",
+    "98:B8:E3": "Apple",
+    "98:D6:BB": "Apple",
+    "98:E0:D9": "Apple",
+    "98:F0:AB": "Apple",
+    "98:FE:94": "Apple",
+    "9C:04:EB": "Apple",
+    "9C:20:7B": "Apple",
+    "9C:35:EB": "Apple",
+    "A4:5E:60": "Apple",
+    "A4:B1:97": "Apple",
+    "A4:D1:8C": "Apple",
+    "A8:20:66": "Apple",
+    "A8:5C:2C": "Apple",
+    "A8:86:DD": "Apple",
+    "A8:96:8A": "Apple",
+    "A8:BB:CF": "Apple",
+    "A8:FA:D8": "Apple",
+    "AC:29:3A": "Apple",
+    "AC:3C:0B": "Apple",
+    "AC:61:EA": "Apple",
+    "AC:7F:3E": "Apple",
+    "AC:87:A3": "Apple",
+    "AC:BC:32": "Apple",
+    "AC:CF:5C": "Apple",
+    "AC:FD:EC": "Apple",
+    "B0:19:C6": "Apple",
+    "B0:34:95": "Apple",
+    "B0:65:BD": "Apple",
+    "B0:70:2D": "Apple",
+    "B0:9F:BA": "Apple",
+    "B4:18:D1": "Apple",
+    "B4:F0:AB": "Apple",
+    "B8:09:8A": "Apple",
+    "B8:17:C2": "Apple",
+    "B8:41:A4": "Apple",
+    "B8:44:D9": "Apple",
+    "B8:53:AC": "Apple",
+    "B8:63:4D": "Apple",
+    "B8:78:2E": "Apple",
+    "B8:8D:12": "Apple",
+    "B8:C1:11": "Apple",
+    "B8:C7:5D": "Apple",
+    "B8:E8:56": "Apple",
+    "B8:F6:B1": "Apple",
+    "BC:3B:AF": "Apple",
+    "BC:52:B7": "Apple",
+    "BC:54:36": "Apple",
+    "BC:67:78": "Apple",
+    "BC:92:6B": "Apple",
+    "C0:1A:DA": "Apple",
+    "C0:63:94": "Apple",
+    "C0:84:7A": "Apple",
+    "C0:9F:42": "Apple",
+    "C0:CC:F8": "Apple",
+    "C0:D0:12": "Apple",
+    "C4:2C:03": "Apple",
+    "C8:1E:E7": "Apple",
+    "C8:2A:14": "Apple",
+    "C8:33:4B": "Apple",
+    "C8:69:CD": "Apple",
+    "C8:6F:1D": "Apple",
+    "C8:85:50": "Apple",
+    "C8:B5:B7": "Apple",
+    "C8:BC:C8": "Apple",
+    "C8:E0:EB": "Apple",
+    "C8:F6:50": "Apple",
+    "CC:08:E0": "Apple",
+    "CC:20:E8": "Apple",
+    "CC:25:EF": "Apple",
+    "CC:29:F5": "Apple",
+    "CC:44:63": "Apple",
+    "CC:78:5F": "Apple",
+    "D0:23:DB": "Apple",
+    "D0:25:98": "Apple",
+    "D0:33:11": "Apple",
+    "D0:4F:7E": "Apple",
+    "D0:A6:37": "Apple",
+    "D0:C5:F3": "Apple",
+    "D0:E1:40": "Apple",
+    "D4:61:9D": "Apple",
+    "D4:9A:20": "Apple",
+    "D4:DC:CD": "Apple",
+    "D4:F4:6F": "Apple",
+    "D8:00:4D": "Apple",
+    "D8:1D:72": "Apple",
+    "D8:30:62": "Apple",
+    "D8:96:95": "Apple",
+    "D8:9E:3F": "Apple",
+    "D8:A2:5E": "Apple",
+    "D8:BB:2C": "Apple",
+    "D8:CF:9C": "Apple",
+    "DC:2B:2A": "Apple",
+    "DC:2B:61": "Apple",
+    "DC:37:14": "Apple",
+    "DC:41:5F": "Apple",
+    "DC:56:E7": "Apple",
+    "DC:86:D8": "Apple",
+    "DC:9B:9C": "Apple",
+    "E0:5F:45": "Apple",
+    "E0:66:78": "Apple",
+    "E0:6F:13": "Apple",
+    "E0:AC:CB": "Apple",
+    "E0:B5:2D": "Apple",
+    "E0:B9:BA": "Apple",
+    "E0:C7:67": "Apple",
+    "E0:C9:7A": "Apple",
+    "E0:F5:C6": "Apple",
+    "E4:25:E7": "Apple",
+    "E4:8B:7F": "Apple",
+    "E4:C6:3D": "Apple",
+    "E4:CE:8F": "Apple",
+    "E4:E4:AB": "Apple",
+    "E8:06:88": "Apple",
+    "E8:80:2E": "Apple",
+    "E8:8D:28": "Apple",
+    "EC:35:86": "Apple",
+    "EC:85:2F": "Apple",
+    "F0:24:75": "Apple",
+    "F0:99:B6": "Apple",
+    "F0:B4:79": "Apple",
+    "F0:C1:F1": "Apple",
+    "F0:CB:A1": "Apple",
+    "F0:D1:A9": "Apple",
+    "F0:DB:E2": "Apple",
+    "F0:DC:E2": "Apple",
+    "F4:1B:A1": "Apple",
+    "F4:37:B7": "Apple",
+    "F4:5C:89": "Apple",
+    "F8:1E:DF": "Apple",
+    "F8:27:93": "Apple",
+    "F8:38:80": "Apple",
+    "FC:25:3F": "Apple",
+    "FC:D8:48": "Apple",
+    "FC:E9:98": "Apple",
+    "00:08:22": "InPro",
+    "B0:BE:76": "TP-Link",
+    "C0:E4:22": "TP-Link",
+    "00:1B:B1": "Brother",
+    "00:80:77": "Brother",
+    "00:0B:A2": "Sumitomo",
+    "30:05:5C": "Brother",
+    "00:1B:A9": "Brother",
+    "3C:2A:F4": "Brother",
+    "00:80:92": "Canon",
+    "00:00:85": "Canon",
+    "18:0C:AC": "Canon",
+    "00:1E:8F": "Canon",
+    "00:BB:3A": "Canon",
+    "04:2A:E2": "Canon",
+    "88:87:17": "Canon",
+    "18:0A:0E": "Canon",
+    "00:00:48": "Epson",
+    "00:26:AB": "Epson",
+    "44:D2:44": "Epson",
+    "64:EB:8C": "Epson",
+    "A4:EE:57": "Epson",
+    "AC:18:26": "Epson",
+    "E0:CB:EE": "Epson",
+  };
+  return vendors[prefix] || null;
+}
+
+// Guess device type from vendor name
+function guessDeviceType(vendor: string | null): string {
+  if (!vendor) return "other";
+  const v = vendor.toLowerCase();
+  if (
+    v.includes("tp-link") ||
+    v.includes("cisco") ||
+    v.includes("mikrotik") ||
+    v.includes("netgear") ||
+    v.includes("d-link") ||
+    v.includes("linksys") ||
+    v.includes("belkin") ||
+    v.includes("ubiquiti") ||
+    v.includes("aruba") ||
+    v.includes("fortinet") ||
+    v.includes("sonicwall") ||
+    v.includes("sophos") ||
+    v.includes("huawei")
+  )
+    return "router";
+  if (v.includes("apple")) return "mobile";
+  if (
+    v.includes("samsung") ||
+    v.includes("xiaomi") ||
+    v.includes("oppo") ||
+    v.includes("vivo") ||
+    v.includes("realme")
+  )
+    return "mobile";
+  if (v.includes("dell") || v.includes("hewlett") || v.includes("hp"))
+    return "pc";
+  if (v.includes("intel") || v.includes("asus") || v.includes("lenovo"))
+    return "pc";
+  if (v.includes("raspberry")) return "server";
+  if (v.includes("vmware") || v.includes("hyper-v") || v.includes("virtual"))
+    return "server";
+  if (v.includes("hikvision") || v.includes("dahua")) return "other";
+  if (v.includes("synology")) return "server";
+  if (
+    v.includes("brother") ||
+    v.includes("canon") ||
+    v.includes("epson") ||
+    v.includes("ricoh")
+  )
+    return "printer";
+  return "other";
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const subnet = body.subnet; // e.g. "192.168.1"
+
+    // Step 1: Ping sweep to populate ARP table
+    if (subnet) {
+      // Ping a range of IPs to populate ARP cache
+      const pingPromises = [];
+      for (let i = 1; i <= 254; i++) {
+        const ip = `${subnet}.${i}`;
+        pingPromises.push(
+          execAsync(`ping -n 1 -w 300 ${ip}`, { timeout: 5000 }).catch(
+            () => null
+          )
+        );
+      }
+      // Run in batches of 50 to avoid too many concurrent processes
+      for (let i = 0; i < pingPromises.length; i += 50) {
+        await Promise.all(pingPromises.slice(i, i + 50));
+      }
+    }
+
+    // Step 2: Read ARP table
+    const { stdout } = await execAsync("arp -a", { timeout: 10000 });
+    const discovered = parseArpTable(stdout);
+
+    // Filter by subnet if specified
+    const filtered = subnet
+      ? discovered.filter((d) => d.ipAddress.startsWith(subnet + "."))
+      : discovered;
+
+    // Enrich with vendor/type info
+    const enriched = filtered.map((d) => ({
+      ...d,
+      vendor: d.vendor,
+      guessedType: guessDeviceType(d.vendor),
+    }));
+
+    // Step 3: Save/update discovered devices in database
+    const { prisma } = await import("@/lib/db");
+    
+    for (const device of enriched) {
+      const key = {
+        ipAddress: device.ipAddress,
+        macAddress: device.macAddress || "",
+      };
+
+      // Check if device exists
+      const existing = await prisma.discoveredDevice.findUnique({
+        where: {
+          ipAddress_macAddress: key,
+        },
+      });
+
+      if (existing) {
+        // Update existing device
+        await prisma.discoveredDevice.update({
+          where: { id: existing.id },
+          data: {
+            lastSeenAt: new Date(),
+            scanCount: { increment: 1 },
+            status: "online",
+            vendor: device.vendor || existing.vendor,
+            guessedType: device.guessedType || existing.guessedType,
+          },
+        });
+      } else {
+        // Create new discovered device
+        await prisma.discoveredDevice.create({
+          data: {
+            ipAddress: device.ipAddress,
+            macAddress: device.macAddress,
+            vendor: device.vendor,
+            guessedType: device.guessedType,
+            status: "online",
+            scanCount: 1,
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({
+      devices: enriched,
+      total: enriched.length,
+      subnet: subnet || "all",
+      saved: true,
+    });
+  } catch (error) {
+    console.error("Network scan error:", error);
+    return NextResponse.json(
+      { error: "ເກີດຂໍ້ຜິດພາດໃນການ scan ເຄືອຂ່າຍ" },
+      { status: 500 }
+    );
+  }
+}

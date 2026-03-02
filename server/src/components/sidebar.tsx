@@ -11,23 +11,89 @@ import {
     AppWindow,
     FileText,
     LayoutGrid,
+    Network,
     LogOut,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { useSocket } from "@/hooks/use-socket";
 
 const navItems = [
-    { href: "/", label: "ແຜງຄວບຄຸມ", icon: LayoutDashboard },
-    { href: "/computers", label: "ຄອມພິວເຕີ", icon: Monitor },
-    { href: "/alerts", label: "ການແຈ້ງເຕືອນ", icon: AlertTriangle },
-    { href: "/messages", label: "ຂໍ້ຄວາມ", icon: MessageSquare },
-    { href: "/programs", label: "ໂປຣແກຣມ", icon: AppWindow },
-    { href: "/management", label: "ການຈັດການ", icon: LayoutGrid },
-    { href: "/audit-logs", label: "ປະຫວັດການເຄື່ອນໄຫວ", icon: FileText },
+    { href: "/", label: "ແຜງຄວບຄຸມ", icon: LayoutDashboard, badge: null },
+    { href: "/computers", label: "ຄອມພິວເຕີ", icon: Monitor, badge: "computers" },
+    { href: "/alerts", label: "ການແຈ້ງເຕືອນ", icon: AlertTriangle, badge: "alerts" },
+    { href: "/messages", label: "ຂໍ້ຄວາມ", icon: MessageSquare, badge: "messages" },
+    { href: "/programs", label: "ໂປຣແກຣມ", icon: AppWindow, badge: null },
+    { href: "/network-devices", label: "ອຸປະກອນເຄືອຂ່າຍ", icon: Network, badge: "networkDevices" },
+    { href: "/management", label: "ການຈັດການ", icon: LayoutGrid, badge: null },
+    { href: "/audit-logs", label: "ປະຫວັດການເຄື່ອນໄຫວ", icon: FileText, badge: null },
 ];
+
+interface Stats {
+    computers: number;
+    alerts: number;
+    messages: number;
+    networkDevices: number;
+    unreadMessages: number;
+    activeAlerts: number;
+}
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     const pathname = usePathname();
     const { data: session } = useSession();
+    const { on } = useSocket();
+    const [stats, setStats] = useState<Stats>({
+        computers: 0,
+        alerts: 0,
+        messages: 0,
+        networkDevices: 0,
+        unreadMessages: 0,
+        activeAlerts: 0,
+    });
+
+    const fetchStats = async () => {
+        try {
+            const res = await fetch("/api/stats");
+            const data = await res.json();
+            setStats(data);
+        } catch (error) {
+            console.error("Failed to fetch stats:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchStats();
+        const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
+
+        // Real-time updates via socket.io
+        const offAlert = on("alert:new", () => fetchStats());
+        const offMessage = on("message:new", () => fetchStats());
+        const offComputer = on("computer:updated", () => fetchStats());
+
+        return () => {
+            clearInterval(interval);
+            offAlert();
+            offMessage();
+            offComputer();
+        };
+    }, [on]);
+
+    const getBadgeCount = (badgeKey: string | null) => {
+        if (!badgeKey) return null;
+        
+        switch (badgeKey) {
+            case "computers":
+                return stats.computers;
+            case "alerts":
+                return stats.activeAlerts; // Show active alerts (24h)
+            case "messages":
+                return stats.unreadMessages; // Show unread messages
+            case "networkDevices":
+                return stats.networkDevices;
+            default:
+                return null;
+        }
+    };
 
     return (
         <aside className="w-64 h-full bg-card border-r border-border flex flex-col shrink-0">
@@ -52,6 +118,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                         (item.href !== "/" && pathname.startsWith(item.href));
                     const Icon = item.icon;
 
+                    const badgeCount = getBadgeCount(item.badge);
+                    const showBadge = badgeCount !== null && badgeCount > 0;
+
                     return (
                         <Link
                             key={item.href}
@@ -64,7 +133,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                             }`}
                         >
                             <Icon className="w-5 h-5" />
-                            {item.label}
+                            <span className="flex-1">{item.label}</span>
+                            {showBadge && (
+                                <span
+                                    className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                        isActive
+                                            ? "bg-white/20 text-white"
+                                            : item.badge === "messages"
+                                            ? "bg-blue-500 text-white"
+                                            : item.badge === "alerts"
+                                            ? "bg-red-500 text-white"
+                                            : "bg-accent/20 text-accent"
+                                    }`}
+                                >
+                                    {badgeCount > 99 ? "99+" : badgeCount}
+                                </span>
+                            )}
                         </Link>
                     );
                 })}
