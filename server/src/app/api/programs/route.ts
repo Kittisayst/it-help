@@ -45,42 +45,39 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const name = String(formData.get("name") || "").trim();
-    const description = String(formData.get("description") || "").trim();
-    const imageUrlRaw = String(formData.get("imageUrl") || "").trim();
-    const imageUrl = imageUrlRaw ? imageUrlRaw : null;
-    const file = formData.get("programFile");
+    const body = await request.json();
+    const { name, description, imageUrl, fileName } = body;
 
-    if (!name || !description || !(file instanceof File)) {
+    if (!name || !description || !fileName) {
       return NextResponse.json(
-        { error: "name, description and program file are required" },
+        { error: "name, description and fileName are required" },
         { status: 400 }
       );
     }
 
-    if (!file.name) {
-      return NextResponse.json({ error: "Invalid program file" }, { status: 400 });
+    // Verify file exists in public/downloads/programs
+    const programsDir = path.join(process.cwd(), "public", "downloads", "programs");
+    const absoluteFilePath = path.join(programsDir, fileName);
+    
+    try {
+      await fs.access(absoluteFilePath);
+    } catch {
+      return NextResponse.json(
+        { error: "File not found in public/downloads/programs" },
+        { status: 404 }
+      );
     }
 
-    const uploadsDir = path.join(process.cwd(), "public", "downloads", "programs");
-    await fs.mkdir(uploadsDir, { recursive: true });
-
-    const safeName = sanitizeFileName(file.name);
-    const storedName = `${Date.now()}-${safeName}`;
-    const absoluteFilePath = path.join(uploadsDir, storedName);
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(absoluteFilePath, fileBuffer);
-
+    // programPath and downloadUrl are the same (relative to public folder)
     const programPath = absoluteFilePath;
-    const downloadUrl = `/downloads/programs/${storedName}`;
+    const downloadUrl = `/downloads/programs/${fileName}`;
 
     const program = await prisma.program.create({
       data: {
         name,
         description,
         programPath,
-        imageUrl,
+        imageUrl: imageUrl || null,
         downloadUrl,
       },
     });
